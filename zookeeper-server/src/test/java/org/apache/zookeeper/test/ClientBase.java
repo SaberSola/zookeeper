@@ -71,7 +71,7 @@ public abstract class ClientBase extends ZKTestCase {
 
     public static int CONNECTION_TIMEOUT = 30000;
     static final File BASETEST =
-        new File(System.getProperty("build.test.dir", "build"));
+        new File("/Users/zhanglei/codeing/persional/zookeeper/conf");
 
     protected int port = PortAssignment.unique();
     protected String hostPort = "127.0.0.1:" + port;

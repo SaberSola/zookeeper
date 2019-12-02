@@ -103,7 +103,7 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory implements Runnable 
     }
 
     @Override
-    public void start() {
+    public void start() {//集群启动
         // ensure thread is started once and only once
         if (thread.getState() == Thread.State.NEW) {
             thread.start();
@@ -112,7 +112,7 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory implements Runnable 
 
     @Override
     public void startup(ZooKeeperServer zks) throws IOException,
-            InterruptedException {
+            InterruptedException {//单个穷
         start();
         setZooKeeperServer(zks);
         zks.startdata();
@@ -198,9 +198,9 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory implements Runnable 
     }
 
     public void run() {
-        while (!ss.socket().isClosed()) {
+        while (!ss.socket().isClosed()) {//如果未关闭
             try {
-                selector.select(1000);
+                selector.select(1000);//
                 Set<SelectionKey> selected;
                 synchronized (this) {
                     selected = selector.selectedKeys();
@@ -208,7 +208,7 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory implements Runnable 
                 ArrayList<SelectionKey> selectedList = new ArrayList<SelectionKey>(
                         selected);
                 Collections.shuffle(selectedList);
-                for (SelectionKey k : selectedList) {
+                for (SelectionKey k : selectedList) {//监听到客端端的链接事件
                     if ((k.readyOps() & SelectionKey.OP_ACCEPT) != 0) {
                         SocketChannel sc = ((ServerSocketChannel) k
                                 .channel()).accept();
@@ -229,6 +229,13 @@ public class NIOServerCnxnFactory extends ServerCnxnFactory implements Runnable 
                             addCnxn(cnxn);
                         }
                     } else if ((k.readyOps() & (SelectionKey.OP_READ | SelectionKey.OP_WRITE)) != 0) {
+                        /**
+                         * 在NIOServerCnxnFactory的run()中接受客户端的连接事件后, 注册了读事件:
+                         * 因为建立连接后, 服务器就可以读取(READ)客户端的请求. 然后创建了NIOServerCnxn,
+                         * 因为注册的是读取事件, 所以NIOServerCnxn构造函数中的SelectionKey感兴趣的事件就是OP_READ.
+                         * NIOServerCnxn代表的是服务器, 服务器可以读取客户端请求(READ), 也可以将客户端的请求结果写回给客户端(WRITE). 都统一在doIO(SelectionKey)中.
+                         * 读写事件都是再次
+                         */
                         NIOServerCnxn c = (NIOServerCnxn) k.attachment();
                         c.doIO(k);
                     } else {

@@ -98,21 +98,24 @@ public class QuorumPeerMain {
 
     protected void initializeAndRun(String[] args)
         throws ConfigException, IOException
-    {
+    {   //新建实例
         QuorumPeerConfig config = new QuorumPeerConfig();
         if (args.length == 1) {
             config.parse(args[0]);
         }
 
         // Start and schedule the the purge task
+        //日志清理线程
         DatadirCleanupManager purgeMgr = new DatadirCleanupManager(config
                 .getDataDir(), config.getDataLogDir(), config
                 .getSnapRetainCount(), config.getPurgeInterval());
         purgeMgr.start();
 
+        //集群模式启动
         if (args.length == 1 && config.servers.size() > 0) {
             runFromConfig(config);
         } else {
+            //单机模式
             LOG.warn("Either no config or no quorum defined in config, running "
                     + " in standalone mode");
             // there is only server in the quorum -- run as standalone
@@ -122,19 +125,19 @@ public class QuorumPeerMain {
 
     public void runFromConfig(QuorumPeerConfig config) throws IOException {
       try {
-          ManagedUtil.registerLog4jMBeans();
+          ManagedUtil.registerLog4jMBeans();//注册mean
       } catch (JMException e) {
           LOG.warn("Unable to register log4j JMX control", e);
       }
   
       LOG.info("Starting quorum peer");
       try {
-          ServerCnxnFactory cnxnFactory = ServerCnxnFactory.createFactory();
+          ServerCnxnFactory cnxnFactory = ServerCnxnFactory.createFactory(); //创建nio Server 接收客户端的链接 默认使用NioServerCnxnFactory
           cnxnFactory.configure(config.getClientPortAddress(),
                                 config.getMaxClientCnxns());
 
           quorumPeer = getQuorumPeer();
-
+          //配置配置信息
           quorumPeer.setQuorumPeers(config.getServers());
           quorumPeer.setTxnFactory(new FileTxnSnapLog(
                   new File(config.getDataLogDir()),
@@ -150,7 +153,7 @@ public class QuorumPeerMain {
           quorumPeer.setClientPortAddress(config.getClientPortAddress());
           quorumPeer.setMinSessionTimeout(config.getMinSessionTimeout());
           quorumPeer.setMaxSessionTimeout(config.getMaxSessionTimeout());
-          quorumPeer.setZKDatabase(new ZKDatabase(quorumPeer.getTxnFactory()));
+          quorumPeer.setZKDatabase(new ZKDatabase(quorumPeer.getTxnFactory()));//zk的内存数据库
           quorumPeer.setLearnerType(config.getPeerType());
           quorumPeer.setSyncEnabled(config.getSyncEnabled());
 
@@ -165,6 +168,8 @@ public class QuorumPeerMain {
           }
 
           quorumPeer.setQuorumCnxnThreadsSize(config.quorumCnxnThreadsSize);
+
+          //初始化
           quorumPeer.initialize();
 
           quorumPeer.start();

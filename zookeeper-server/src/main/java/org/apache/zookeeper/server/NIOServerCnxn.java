@@ -58,19 +58,19 @@ import org.apache.zookeeper.server.util.OSMXBean;
 public class NIOServerCnxn extends ServerCnxn {
     static final Logger LOG = LoggerFactory.getLogger(NIOServerCnxn.class);
 
-    NIOServerCnxnFactory factory;
+    NIOServerCnxnFactory factory;  //factory
 
-    final SocketChannel sock;
+    final SocketChannel sock;      //socket
 
-    protected final SelectionKey sk;
+    protected final SelectionKey sk; //key
 
     boolean initialized;
 
-    ByteBuffer lenBuffer = ByteBuffer.allocate(4);
+    ByteBuffer lenBuffer = ByteBuffer.allocate(4); //客户端指令大部分四字节
 
-    ByteBuffer incomingBuffer = lenBuffer;
+    ByteBuffer incomingBuffer = lenBuffer; //输入缓冲区
 
-    LinkedBlockingQueue<ByteBuffer> outgoingBuffers = new LinkedBlockingQueue<ByteBuffer>();
+    LinkedBlockingQueue<ByteBuffer> outgoingBuffers = new LinkedBlockingQueue<ByteBuffer>();//输出缓冲区,写入结果给客户端使用
 
     int sessionTimeout;
 
@@ -232,7 +232,7 @@ public class NIOServerCnxn extends ServerCnxn {
     }
 
     /**
-     * Handles read/write IO on connection.
+     * Handles read/write IO on connection. 读事件
      */
     void doIO(SelectionKey k) throws InterruptedException {
         try {
@@ -243,7 +243,7 @@ public class NIOServerCnxn extends ServerCnxn {
                 return;
             }
             if (k.isReadable()) {
-                int rc = sock.read(incomingBuffer);
+                int rc = sock.read(incomingBuffer);//
                 if (rc < 0) {
                     throw new EndOfStreamException(
                             "Unable to read additional data from client sessionid 0x"

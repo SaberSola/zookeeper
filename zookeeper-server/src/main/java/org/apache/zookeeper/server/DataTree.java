@@ -68,6 +68,7 @@ import org.slf4j.LoggerFactory;
  * The tree maintains two parallel data structures: a hashtable that maps from
  * full paths to DataNodes and a tree of DataNodes. All accesses to a path is
  * through the hashtable. The tree is traversed only when serializing to disk.
+ * 数据节点树，管理着DataNode，负责触发watch通知。
  */
 public class DataTree {
     private static final Logger LOG = LoggerFactory.getLogger(DataTree.class);
@@ -76,12 +77,12 @@ public class DataTree {
      * This hashtable provides a fast lookup to the datanodes. The tree is the
      * source of truth and is where all the locking occurs
      */
-    private final ConcurrentHashMap<String, DataNode> nodes =
+    private final ConcurrentHashMap<String, DataNode> nodes =    //key 为全路径名称
         new ConcurrentHashMap<String, DataNode>();
 
-    private final WatchManager dataWatches = new WatchManager();
+    private final WatchManager dataWatches = new WatchManager();//data监听
 
-    private final WatchManager childWatches = new WatchManager();
+    private final WatchManager childWatches = new WatchManager();//
 
     /** the root of zookeeper tree */
     private static final String rootZookeeper = "/";
@@ -95,6 +96,7 @@ public class DataTree {
     /**
      * the zookeeper quota node that acts as the quota management node for
      * zookeeper
+     * zookeeper的配置节点
      */
     private static final String quotaZookeeper = Quotas.quotaZookeeper;
 
@@ -362,14 +364,17 @@ public class DataTree {
      * @param time
      * @return the patch of the created node
      * @throws KeeperException
+     * 创建节点
      */
     public String createNode(String path, byte data[], List<ACL> acl,
             long ephemeralOwner, int parentCVersion, long zxid, long time)
             throws KeeperException.NoNodeException,
             KeeperException.NodeExistsException {
-        int lastSlash = path.lastIndexOf('/');
-        String parentName = path.substring(0, lastSlash);
-        String childName = path.substring(lastSlash + 1);
+
+        // /bug/zl/test 为例
+        int lastSlash = path.lastIndexOf('/');//最后一个路径 7
+        String parentName = path.substring(0, lastSlash); // /bug/zl
+        String childName = path.substring(lastSlash + 1); //
         StatPersisted stat = new StatPersisted();
         stat.setCtime(time);
         stat.setMtime(time);
@@ -384,8 +389,8 @@ public class DataTree {
             throw new KeeperException.NoNodeException();
         }
         synchronized (parent) {
-            Set<String> children = parent.getChildren();
-            if (children.contains(childName)) {
+            Set<String> children = parent.getChildren();//获取children
+            if (children.contains(childName)) {//节点已经存在
                 throw new KeeperException.NodeExistsException();
             }
             
@@ -396,7 +401,7 @@ public class DataTree {
             parent.stat.setCversion(parentCVersion);
             parent.stat.setPzxid(zxid);
             Long longval = aclCache.convertAcls(acl);
-            DataNode child = new DataNode(parent, data, longval, stat);
+            DataNode child = new DataNode(parent, data, longval, stat);//创建node
             parent.addChild(childName);
             nodes.put(path, child);
             if (ephemeralOwner != 0) {
@@ -430,7 +435,7 @@ public class DataTree {
             updateCount(lastPrefix, 1);
             updateBytes(lastPrefix, data == null ? 0 : data.length);
         }
-        dataWatches.triggerWatch(path, Event.EventType.NodeCreated);
+        dataWatches.triggerWatch(path, Event.EventType.NodeCreated); //触发watch 时间
         childWatches.triggerWatch(parentName.equals("") ? "/" : parentName,
                 Event.EventType.NodeChildrenChanged);
         return path;
@@ -697,6 +702,15 @@ public class DataTree {
 
     public volatile long lastProcessedZxid = 0;
 
+    /**
+     * DataTree对每一条事务日志记录进行恢复, 注意循环的控制即整个日志文件的恢复在FileTxnSnapLog的restore的while循环中.
+     * 下面以创建znode节点为例: 前面我们说过日志记录的内容Record应该是具体的实现类,
+     * 这不, 下面的创建节点日志内容的对象为CreateTxn. 删除节点为DeleteTxn, 设置数据为SetDataTxn... MultiTxn的处理方式是循环解析出每一个Txn,
+     * 然后再次调用processTxn, 再次调用时, 每一个Txn就是具体的CreateTxn, DeleteTxn, ...
+     * @param header
+     * @param txn
+     * @return
+     */
     public ProcessTxnResult processTxn(TxnHeader header, Record txn)
     {
         ProcessTxnResult rc = new ProcessTxnResult();

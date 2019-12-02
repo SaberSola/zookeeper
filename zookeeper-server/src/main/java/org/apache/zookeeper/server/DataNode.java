@@ -35,7 +35,7 @@ import org.apache.zookeeper.data.StatPersisted;
  * <p>
  * A data node contains a reference to its parent, a byte array as its data, an
  * array of ACLs, a stat object, and a set of its children's paths.
- * 
+ * zk的节点使用Node节点存储
  */
 @SuppressFBWarnings("EI_EXPOSE_REP2")
 public class DataNode implements Record {

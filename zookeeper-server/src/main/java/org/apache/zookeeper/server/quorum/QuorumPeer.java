@@ -633,7 +633,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
     
     @Override
     public synchronized void start() {
-        loadDataBase();
+        loadDataBase();//加载database
         cnxnFactory.start();        
         startLeaderElection();
         super.start();

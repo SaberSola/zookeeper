@@ -140,6 +140,7 @@ public class QuorumPeerMainTest extends QuorumPeerTestBase {
         q1.shutdown();
         q2.shutdown();
 
+        Thread.sleep(10000000000L);
         Assert.assertTrue("waiting for server 1 down",
                 ClientBase.waitForServerDown("127.0.0.1:" + CLIENT_PORT_QP1,
                         ClientBase.CONNECTION_TIMEOUT));
