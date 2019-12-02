@@ -72,6 +72,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The command line client to ZooKeeper.
+ * 客户端启动类
  *
  */
 @InterfaceAudience.Public

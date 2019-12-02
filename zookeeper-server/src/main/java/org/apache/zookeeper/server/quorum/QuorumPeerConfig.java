@@ -68,22 +68,22 @@ public class QuorumPeerConfig {
     private static boolean standaloneEnabled = true;
     private static boolean reconfigEnabled = false;
 
-    protected InetSocketAddress clientPortAddress;
+    protected InetSocketAddress clientPortAddress;//
     protected InetSocketAddress secureClientPortAddress;
     protected boolean sslQuorum = false;
     protected boolean shouldUsePortUnification = false;
     protected int observerMasterPort;
     protected boolean sslQuorumReloadCertFiles = false;
-    protected File dataDir;
-    protected File dataLogDir;
-    protected String dynamicConfigFileStr = null;
+    protected File dataDir;                //存储储snapshot的目录，默认情况下，事务日志也会存储在这里。
+    protected File dataLogDir;             //事务日志输出目录，尽量给事务日志的输出配置单独的磁盘或挂载点
+    protected String dynamicConfigFileStr = null; //
     protected String configFileStr = null;
-    protected int tickTime = ZooKeeperServer.DEFAULT_TICK_TIME;
-    protected int maxClientCnxns = 60;
+    protected int tickTime = ZooKeeperServer.DEFAULT_TICK_TIME;//心跳时间 zk所有的时间都是这个时间的倍数
+    protected int maxClientCnxns = 60;  //一个客户端连接连接同一个服务器的最大连接数
     /** defaults to -1 if not set explicitly */
-    protected int minSessionTimeout = -1;
+    protected int minSessionTimeout = -1; //最小session time
     /** defaults to -1 if not set explicitly */
-    protected int maxSessionTimeout = -1;
+    protected int maxSessionTimeout = -1; //最大session time
     protected String metricsProviderClassName = DefaultMetricsProvider.class.getName();
     protected Properties metricsProviderConfiguration = new Properties();
     protected boolean localSessionsEnabled = false;
@@ -91,23 +91,23 @@ public class QuorumPeerConfig {
     /** defaults to -1 if not set explicitly */
     protected int clientPortListenBacklog = -1;
 
-    protected int initLimit;
-    protected int syncLimit;
-    protected int connectToLearnerMasterLimit;
-    protected int electionAlg = 3;
-    protected int electionPort = 2182;
+    protected int initLimit;                 //表示在leader选举结束后，followers与leader同步需的时间。
+    protected int syncLimit;                 //也表示与leader交互时最大等待时间，但是在同步完毕之后
+    protected int connectToLearnerMasterLimit; //连接master最大超时时长
+    protected int electionAlg = 3;           //leader选举算法，
+    protected int electionPort = 2182;       //用于集群间通讯的端口
     protected boolean quorumListenOnAllIPs = false;
 
-    protected long serverId = UNSET_SERVERID;
+    protected long serverId = UNSET_SERVERID;  //本机的serverId
 
-    protected QuorumVerifier quorumVerifier = null, lastSeenQuorumVerifier = null;
-    protected int snapRetainCount = 3;
-    protected int purgeInterval = 0;
+    protected QuorumVerifier quorumVerifier = null, lastSeenQuorumVerifier = null;//用于检测机器是否属于集群
+    protected int snapRetainCount = 3;//快照保留数
+    protected int purgeInterval = 0;//清理快照和日志的时间间隔
     protected boolean syncEnabled = true;
 
     protected String initialConfig;
 
-    protected LearnerType peerType = LearnerType.PARTICIPANT;
+    protected LearnerType peerType = LearnerType.PARTICIPANT;//本机服务类型
 
     /**
      * Configurations for the quorumpeer-to-quorumpeer sasl authentication
@@ -118,7 +118,7 @@ public class QuorumPeerConfig {
     protected String quorumServicePrincipal = QuorumAuth.QUORUM_KERBEROS_SERVICE_PRINCIPAL_DEFAULT_VALUE;
     protected String quorumLearnerLoginContext = QuorumAuth.QUORUM_LEARNER_SASL_LOGIN_CONTEXT_DFAULT_VALUE;
     protected String quorumServerLoginContext = QuorumAuth.QUORUM_SERVER_SASL_LOGIN_CONTEXT_DFAULT_VALUE;
-    protected int quorumCnxnThreadsSize;
+    protected int quorumCnxnThreadsSize;// 集群间通讯所使用的线程池大小
 
     /**
      * Minimum snapshot retain count.
@@ -157,6 +157,7 @@ public class QuorumPeerConfig {
 
     /**
      * Parse a ZooKeeper configuration file
+     * //解析zk配置文件
      * @param path the patch of the configuration file
      * @throws ConfigException error processing configuration
      */
@@ -277,61 +278,92 @@ public class QuorumPeerConfig {
             String key = entry.getKey().toString().trim();
             String value = entry.getValue().toString().trim();
             if (key.equals("dataDir")) {
-                dataDir = vff.create(value);
-            } else if (key.equals("dataLogDir")) {
+                dataDir = vff.create(value); //快照目录
+            } else if (key.equals("dataLogDir")) { //日志目录
                 dataLogDir = vff.create(value);
-            } else if (key.equals("clientPort")) {
+            } else if (key.equals("clientPort")) { //服务器使用的端口
                 clientPort = Integer.parseInt(value);
-            } else if (key.equals("localSessionsEnabled")) {
+            } else if (key.equals("localSessionsEnabled")) {//本地session开关
                 localSessionsEnabled = Boolean.parseBoolean(value);
             } else if (key.equals("localSessionsUpgradingEnabled")) {
                 localSessionsUpgradingEnabled = Boolean.parseBoolean(value);
-            } else if (key.equals("clientPortAddress")) {
+            } else if (key.equals("clientPortAddress")) {//ip
                 clientPortAddress = value.trim();
-            } else if (key.equals("secureClientPort")) {
+            } else if (key.equals("secureClientPort")) { //port
                 secureClientPort = Integer.parseInt(value);
             } else if (key.equals("secureClientPortAddress")) {
                 secureClientPortAddress = value.trim();
             } else if (key.equals("observerMasterPort")) {
                 observerMasterPort = Integer.parseInt(value);
-            } else if (key.equals("clientPortListenBacklog")) {
+            } else if (key.equals("clientPortListenBacklog")) { //监听port队列大小 backlog参数
                 clientPortListenBacklog = Integer.parseInt(value);
-            } else if (key.equals("tickTime")) {
+            } else if (key.equals("tickTime")) {    //时间单元
                 tickTime = Integer.parseInt(value);
-            } else if (key.equals("maxClientCnxns")) {
+            } else if (key.equals("maxClientCnxns")) {// 最大允许多少客户端连接
                 maxClientCnxns = Integer.parseInt(value);
             } else if (key.equals("minSessionTimeout")) {
                 minSessionTimeout = Integer.parseInt(value);
             } else if (key.equals("maxSessionTimeout")) {
                 maxSessionTimeout = Integer.parseInt(value);
-            } else if (key.equals("initLimit")) {
+            } else if (key.equals("initLimit")) { //限制连接到 leader 的时间，实际时间为 initLimit * tickTime
                 initLimit = Integer.parseInt(value);
-            } else if (key.equals("syncLimit")) {
+            } else if (key.equals("syncLimit")) { //leader 到节点同步超时限制, 实际时间为 syncLimit * tickTime
                 syncLimit = Integer.parseInt(value);
             } else if (key.equals("connectToLearnerMasterLimit")) {
                 connectToLearnerMasterLimit = Integer.parseInt(value);
             } else if (key.equals("electionAlg")) {
+                // 指定选举算法，0：最原始的 udp 版本；  未来可能被舍弃
+                //             1：没有验证的udp快速选举版本；  未来被舍弃
+                //             2：有验证的udp快速选举版本；   未来被舍弃
+                //             3：基于tcp的快速选举版本；   默认采用
                 electionAlg = Integer.parseInt(value);
                 if (electionAlg != 1 && electionAlg != 2 && electionAlg != 3) {
                     throw new ConfigException("Invalid electionAlg value. Only 1, 2, 3 are supported.");
                 }
-            } else if (key.equals("quorumListenOnAllIPs")) {
+            } else if (key.equals("quorumListenOnAllIPs")) {   //
+                /*
+                 * 当设置为true时，ZooKeeper服务器将会在所有可用的IP地址上监听来自其对等点的连接请求，
+                 * 而不仅是配置文件的服务器列表中配置的地址。
+                 * 它会影响处理ZAB协议和Fast Leader Election协议的连接。默认值是false。
+                 */
                 quorumListenOnAllIPs = Boolean.parseBoolean(value);
             } else if (key.equals("peerType")) {
+                /*
+                 * 在zookeeper集群中使用观察者。
+                 * peerType=observer
+                 * 这行配置告诉zookeeper这台服务器将会成为一个Observers。
+                 *
+                 * 其次，在所有的服务器节点，在server定义处需要在末尾增加:observer。例如：
+                 *
+                 * server.1:localhost:2181:3181:observer
+                 * 这会告诉其它服务server.1是一个observer，不会参与投票。
+                 *
+                 * 运行下面的命令即可链接到集群：
+                 *
+                 * bin/zkCli.sh -server localhost:2181
+                 */
                 if (value.toLowerCase().equals("observer")) {
                     peerType = LearnerType.OBSERVER;
                 } else if (value.toLowerCase().equals("participant")) {
+                    /*
+                     * 参与者，将参与选举，最终分为 leader 和 follower
+                     */
                     peerType = LearnerType.PARTICIPANT;
                 } else {
                     throw new ConfigException("Unrecognised peertype: " + value);
                 }
             } else if (key.equals("syncEnabled")) {
+                /*
+                 * 和参与者一样，观察者现在默认将事务日志以及数据快照写到磁盘上，
+                 * 这将减少观察者在服务器重启时的恢复时间。将其值设置为“false”可以禁用该特性。默认值是 “true”。
+                 */
                 syncEnabled = Boolean.parseBoolean(value);
             } else if (key.equals("dynamicConfigFile")) {
                 dynamicConfigFileStr = value;
             } else if (key.equals("autopurge.snapRetainCount")) {
                 snapRetainCount = Integer.parseInt(value);
             } else if (key.equals("autopurge.purgeInterval")) {
+                // 自动删除历史日志和快照的时间间隔
                 purgeInterval = Integer.parseInt(value);
             } else if (key.equals("standaloneEnabled")) {
                 if (value.toLowerCase().equals("true")) {

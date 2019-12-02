@@ -69,6 +69,8 @@ import org.slf4j.LoggerFactory;
  * In addition to the config file. There is a file in the data directory called
  * "myid" that contains the server id as an ASCII decimal value.
  *
+ * zk服务端源码启动
+ *
  */
 @InterfaceAudience.Public
 public class QuorumPeerMain {
