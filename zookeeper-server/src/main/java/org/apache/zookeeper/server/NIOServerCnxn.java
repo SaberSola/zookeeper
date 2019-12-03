@@ -190,7 +190,7 @@ public class NIOServerCnxn extends ServerCnxn {
         }
     }
 
-    /** Read the request payload (everything following the length prefix) */
+    /** Read the request payload (everything following the length prefix) 读取playload内容*/
     private void readPayload() throws IOException, InterruptedException {
         if (incomingBuffer.remaining() != 0) { // have we read length bytes?
             int rc = sock.read(incomingBuffer); // sock is non-blocking, so ok
@@ -205,10 +205,10 @@ public class NIOServerCnxn extends ServerCnxn {
         if (incomingBuffer.remaining() == 0) { // have we read length bytes?
             packetReceived();
             incomingBuffer.flip();
-            if (!initialized) {
+            if (!initialized) {//连接请求
                 readConnectRequest();
             } else {
-                readRequest();
+                readRequest();//读取请求,数据请求
             }
             lenBuffer.clear();
             incomingBuffer = lenBuffer;
@@ -242,18 +242,18 @@ public class NIOServerCnxn extends ServerCnxn {
 
                 return;
             }
-            if (k.isReadable()) {
-                int rc = sock.read(incomingBuffer);//
+            if (k.isReadable()) {//读事件
+                int rc = sock.read(incomingBuffer);//读数据到incomingBuffer rc为读的字节
                 if (rc < 0) {
                     throw new EndOfStreamException(
                             "Unable to read additional data from client sessionid 0x"
                             + Long.toHexString(sessionId)
                             + ", likely client has closed socket");
                 }
-                if (incomingBuffer.remaining() == 0) {
+                if (incomingBuffer.remaining() == 0) {//缓冲区被读满
                     boolean isPayload;
                     if (incomingBuffer == lenBuffer) { // start of next request
-                        incomingBuffer.flip();
+                        incomingBuffer.flip();//flip方法 开始读取
                         isPayload = readLength(k);
                         incomingBuffer.clear();
                     } else {

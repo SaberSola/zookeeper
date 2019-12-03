@@ -27,7 +27,7 @@ import java.nio.channels.FileChannel;
 
 public class FilePadding {
     private static final Logger LOG;
-    private static long preAllocSize = 65536 * 1024;
+    private static long preAllocSize = 65536 * 1024;//预分配文件大小
     private static final ByteBuffer fill = ByteBuffer.allocateDirect(1);
 
     static {

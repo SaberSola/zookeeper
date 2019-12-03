@@ -55,11 +55,14 @@ import org.slf4j.LoggerFactory;
  * <blockquote><pre>
  * LogFile:
  *     FileHeader TxnList ZeroPad
+ *
+ *日志文件三部分组成
+ *     FileHeader TxnList ZeroPad
  * 
  * FileHeader: {
- *     magic 4bytes (ZKLG)
+ *     magic   4bytes (ZKLG)
  *     version 4bytes
- *     dbid 8bytes
+ *     dbid    8bytes
  *   }
  * 
  * TxnList:
@@ -92,17 +95,22 @@ import org.slf4j.LoggerFactory;
 public class FileTxnLog implements TxnLog {
     private static final Logger LOG;
 
+    //4字节的魔数
     public final static int TXNLOG_MAGIC =
         ByteBuffer.wrap("ZKLG".getBytes()).getInt();
 
+    // 版本号
     public final static int VERSION = 2;
 
+    //日志文件前缀
     public static final String LOG_FILE_PREFIX = "log";
+
 
     static final String FSYNC_WARNING_THRESHOLD_MS_PROPERTY = "fsync.warningthresholdms";
     static final String ZOOKEEPER_FSYNC_WARNING_THRESHOLD_MS_PROPERTY = "zookeeper." + FSYNC_WARNING_THRESHOLD_MS_PROPERTY;
 
     /** Maximum time we allow for elapsed fsync before WARNing */
+    // 进行同步时，发出warn之前所能等待的最长时间
     private final static long fsyncWarningThresholdMS;
 
     static {
@@ -115,19 +123,31 @@ public class FileTxnLog implements TxnLog {
         fsyncWarningThresholdMS = fsyncWarningThreshold;
     }
 
+    // 最大(新)的zxid
     long lastZxidSeen;
+
+    // 存储数据相关的流
     volatile BufferedOutputStream logStream = null;
     volatile OutputArchive oa;
     volatile FileOutputStream fos = null;
-
+    // log目录文件
     File logDir;
+
+    //强制刷盘
     private final boolean forceSync = !System.getProperty("zookeeper.forceSync", "yes").equals("no");;
+
+    //数据
     long dbId;
+
+    //
     private LinkedList<FileOutputStream> streamsToFlush =
         new LinkedList<FileOutputStream>();
     File logFileWrite = null;
+
+    //
     private FilePadding filePadding = new FilePadding();
 
+    //
     private ServerStats serverStats;
 
     /**
@@ -194,7 +214,8 @@ public class FileTxnLog implements TxnLog {
      * append an entry to the transaction log
      * @param hdr the header of the transaction
      * @param txn the transaction part of the entry
-     * returns true iff something appended, otw false 
+     * returns true iff something appended, otw false
+     * //拼接日志
      */
     public synchronized boolean append(TxnHeader hdr, Record txn)
         throws IOException
@@ -203,38 +224,46 @@ public class FileTxnLog implements TxnLog {
             return false;
         }
 
-        if (hdr.getZxid() <= lastZxidSeen) {
+        if (hdr.getZxid() <= lastZxidSeen) { //判断事务Id
             LOG.warn("Current zxid " + hdr.getZxid()
                     + " is <= " + lastZxidSeen + " for "
                     + hdr.getType());
         } else {
-            lastZxidSeen = hdr.getZxid();
+            lastZxidSeen = hdr.getZxid();//设置最新的
         }
 
-        if (logStream==null) {
+        if (logStream==null) {//判断流是否未初始化
            if(LOG.isInfoEnabled()){
                 LOG.info("Creating new log file: " + Util.makeLogName(hdr.getZxid()));
            }
 
-           logFileWrite = new File(logDir, Util.makeLogName(hdr.getZxid()));
+           logFileWrite = new File(logDir, Util.makeLogName(hdr.getZxid()));//第一次 创建log
            fos = new FileOutputStream(logFileWrite);
            logStream=new BufferedOutputStream(fos);
            oa = BinaryOutputArchive.getArchive(logStream);
-           FileHeader fhdr = new FileHeader(TXNLOG_MAGIC,VERSION, dbId);
+           FileHeader fhdr = new FileHeader(TXNLOG_MAGIC,VERSION, dbId);//log header
+
+            //序列化
            fhdr.serialize(oa, "fileheader");
            // Make sure that the magic number is written before padding.
-           logStream.flush();
+           logStream.flush();//输盘
+            //设置当前通道指针
            filePadding.setCurrentSize(fos.getChannel().position());
-           streamsToFlush.add(fos);
+           streamsToFlush.add(fos);//刷盘队列
         }
+        //填充文件
         filePadding.padFile(fos.getChannel());
+        //事务头 和事务数据 序列化
         byte[] buf = Util.marshallTxnEntry(hdr, txn);
         if (buf == null || buf.length == 0) {
             throw new IOException("Faulty serialization for header " +
                     "and txn");
         }
+        // // 生成一个验证算法
         Checksum crc = makeChecksumAlgorithm();
-        crc.update(buf, 0, buf.length);
+        // 使用Byte数组来更新当前的Checksum
+        crc.update(buf, 0, buf.length)
+        ;
         oa.writeLong(crc.getValue(), "txnEntryCRC");
         Util.writeTxnBytes(oa, buf);
 

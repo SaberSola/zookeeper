@@ -26,7 +26,7 @@ import org.apache.zookeeper.txn.TxnHeader;
 
 /**
  * Interface for reading transaction logs.
- *
+ * 事务日志处理接口
  */
 public interface TxnLog {
 
@@ -39,7 +39,8 @@ public interface TxnLog {
     /**
      * roll the current
      * log being appended to
-     * @throws IOException 
+     * @throws IOException
+     * 回滚日志
      */
     void rollLog() throws IOException;
     /**
@@ -48,6 +49,8 @@ public interface TxnLog {
      * @param r the transaction itself
      * returns true iff something appended, otw false 
      * @throws IOException
+     *  添加一个请求至事务性日志
+     *
      */
     boolean append(TxnHeader hdr, Record r) throws IOException;
 
@@ -58,6 +61,7 @@ public interface TxnLog {
      * @return returns an iterator to read the 
      * next transaction in the logs.
      * @throws IOException
+     * 读取事务性日志
      */
     TxnIterator read(long zxid) throws IOException;
     
@@ -65,6 +69,7 @@ public interface TxnLog {
      * the last zxid of the logged transactions.
      * @return the last zxid of the logged transactions.
      * @throws IOException
+     * 事务性操作的最新zxid
      */
     long getLastLoggedZxid() throws IOException;
     
@@ -72,7 +77,8 @@ public interface TxnLog {
      * truncate the log to get in sync with the 
      * leader.
      * @param zxid the zxid to truncate at.
-     * @throws IOException 
+     * @throws IOException
+     * 清空日志，与Leader保持同步
      */
     boolean truncate(long zxid) throws IOException;
     
@@ -80,6 +86,7 @@ public interface TxnLog {
      * the dbid for this transaction log. 
      * @return the dbid for this transaction log.
      * @throws IOException
+     * 获取数据库的id
      */
     long getDbId() throws IOException;
     
@@ -87,33 +94,39 @@ public interface TxnLog {
      * commmit the trasaction and make sure
      * they are persisted
      * @throws IOException
+     *  提交事务并进行确认
      */
     void commit() throws IOException;
    
     /** 
      * close the transactions logs
+     *  关闭事务性日志
      */
     void close() throws IOException;
     /**
      * an iterating interface for reading 
-     * transaction logs. 
+     * transaction logs.
+     *  读取事务日志的迭代器接口
      */
     public interface TxnIterator {
         /**
          * return the transaction header.
          * @return return the transaction header.
+         *  获取事务头部
          */
         TxnHeader getHeader();
         
         /**
          * return the transaction record.
          * @return return the transaction record.
+         * 获取事务
          */
         Record getTxn();
      
         /**
          * go to the next transaction record.
          * @throws IOException
+         *  下个事务
          */
         boolean next() throws IOException;
         
@@ -121,6 +134,7 @@ public interface TxnLog {
          * close files and release the 
          * resources
          * @throws IOException
+         *  关闭文件释放资源
          */
         void close() throws IOException;
     }
