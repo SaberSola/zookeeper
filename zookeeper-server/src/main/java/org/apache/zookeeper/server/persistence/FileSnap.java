@@ -47,16 +47,24 @@ import org.apache.zookeeper.server.util.SerializeUtils;
  * it is responsible for storing, serializing
  * and deserializing the right snapshot.
  * and provides access to the snapshots.
+ * 内存快照
+ *
  */
 public class FileSnap implements SnapShot {
+    // snapshot目录文件
     File snapDir;
+    //是否关闭
     private volatile boolean close = false;
+    //版本号
     private static final int VERSION=2;
+    //dbid
     private static final long dbId=-1;
     private static final Logger LOG = LoggerFactory.getLogger(FileSnap.class);
+    //魔数
     public final static int SNAP_MAGIC
         = ByteBuffer.wrap("ZKSN".getBytes()).getInt();
 
+    //文件后缀
     public static final String SNAPSHOT_FILE_PREFIX = "snapshot";
 
     public FileSnap(File snapDir) {
@@ -66,20 +74,23 @@ public class FileSnap implements SnapShot {
     /**
      * deserialize a data tree from the most recent snapshot
      * @return the zxid of the snapshot
+     *反序列化
      */ 
     public long deserialize(DataTree dt, Map<Long, Integer> sessions)
             throws IOException {
         // we run through 100 snapshots (not all of them)
         // if we cannot get it running within 100 snapshots
         // we should  give up
+        // 查找100个合法的snapshot文件
         List<File> snapList = findNValidSnapshots(100);
         if (snapList.size() == 0) {
             return -1L;
         }
         File snap = null;
+        //默认不合法
         boolean foundValid = false;
         for (int i = 0; i < snapList.size(); i++) {
-            snap = snapList.get(i);
+            snap = snapList.get(i);//获取snap文件
             InputStream snapIS = null;
             CheckedInputStream crcIn = null;
             try {
@@ -87,15 +98,19 @@ public class FileSnap implements SnapShot {
                 snapIS = new BufferedInputStream(new FileInputStream(snap));
                 crcIn = new CheckedInputStream(snapIS, new Adler32());
                 InputArchive ia = BinaryInputArchive.getArchive(crcIn);
+                //反序列化
                 deserialize(dt,sessions, ia);
                 long checkSum = crcIn.getChecksum().getValue();
+                // 从文件中读取val值
                 long val = ia.readLong("val");
+                //比较验证
                 if (val != checkSum) {
                     throw new IOException("CRC corruption in snapshot :  " + snap);
                 }
                 foundValid = true;
                 break;
             } catch(IOException e) {
+                //不合法抛出
                 LOG.warn("problem reading snap file " + snap, e);
             } finally {
                 if (snapIS != null) 
@@ -107,7 +122,7 @@ public class FileSnap implements SnapShot {
         if (!foundValid) {
             throw new IOException("Not able to find valid snapshots in " + snapDir);
         }
-        dt.lastProcessedZxid = Util.getZxidFromName(snap.getName(), SNAPSHOT_FILE_PREFIX);
+        dt.lastProcessedZxid = Util.getZxidFromName(snap.getName(), SNAPSHOT_FILE_PREFIX);//恢复dataTree的事务Id
         return dt.lastProcessedZxid;
     }
 
@@ -155,6 +170,7 @@ public class FileSnap implements SnapShot {
      * @throws IOException
      */
     private List<File> findNValidSnapshots(int n) throws IOException {
+        // 按照zxid对snapshot文件进行降序排序
         List<File> files = Util.sortDataDir(snapDir.listFiles(), SNAPSHOT_FILE_PREFIX, false);
         int count = 0;
         List<File> list = new ArrayList<File>();
@@ -163,6 +179,8 @@ public class FileSnap implements SnapShot {
             // from the valid snapshot and continue
             // until we find a valid one
             try {
+                // 验证文件是否合法，在写snapshot文件时服务器宕机
+                // 此时的snapshot文件非法;非snapshot文件也非法
                 if (Util.isValidSnapshot(f)) {
                     list.add(f);
                     count++;
@@ -206,6 +224,7 @@ public class FileSnap implements SnapShot {
      * @param oa the output archive to serialize into
      * @param header the header of this snapshot
      * @throws IOException
+     * 序列化函数
      */
     protected void serialize(DataTree dt,Map<Long, Integer> sessions,
             OutputArchive oa, FileHeader header) throws IOException {
@@ -214,8 +233,8 @@ public class FileSnap implements SnapShot {
         if(header==null)
             throw new IllegalStateException(
                     "Snapshot's not open for writing: uninitialized header");
-        header.serialize(oa, "fileheader");
-        SerializeUtils.serializeSnapshot(dt,oa,sessions);
+        header.serialize(oa, "fileheader"); //序列化头部
+        SerializeUtils.serializeSnapshot(dt,oa,sessions);//序列化数据
     }
 
     /**
@@ -226,16 +245,23 @@ public class FileSnap implements SnapShot {
      */
     public synchronized void serialize(DataTree dt, Map<Long, Integer> sessions, File snapShot)
             throws IOException {
-        if (!close) {
+        if (!close) { // 未关闭
+            // 输出流
             OutputStream sessOS = new BufferedOutputStream(new FileOutputStream(snapShot));
             CheckedOutputStream crcOut = new CheckedOutputStream(sessOS, new Adler32());
             //CheckedOutputStream cout = new CheckedOutputStream()
             OutputArchive oa = BinaryOutputArchive.getArchive(crcOut);
+            // 新生文件头
             FileHeader header = new FileHeader(SNAP_MAGIC, VERSION, dbId);
+            // 序列化dt、sessions、header
             serialize(dt,sessions,oa, header);
+            // 获取验证的值
             long val = crcOut.getChecksum().getValue();
+            // 写入值
             oa.writeLong(val, "val");
+            // 写入"/"
             oa.writeString("/", "path");
+            // 强制刷新
             sessOS.flush();
             crcOut.close();
             sessOS.close();

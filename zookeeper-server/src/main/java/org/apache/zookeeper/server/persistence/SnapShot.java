@@ -37,6 +37,7 @@ public interface SnapShot {
      * @param sessions the sessions to be deserialized into
      * @return the last zxid that was deserialized from the snapshot
      * @throws IOException
+     *  反序列化
      */
     long deserialize(DataTree dt, Map<Long, Integer> sessions) 
         throws IOException;
@@ -46,6 +47,7 @@ public interface SnapShot {
      * @param dt the datatree to be serialized
      * @param sessions 
      * @throws IOException
+     * 序列胡
      */
     void serialize(DataTree dt, Map<Long, Integer> sessions, 
             File name) 

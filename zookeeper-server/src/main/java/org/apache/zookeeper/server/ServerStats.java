@@ -28,21 +28,21 @@ import java.util.concurrent.atomic.AtomicLong;
  * Basic Server Statistics
  */
 public class ServerStats {
-    private long packetsSent;
-    private long packetsReceived;
-    private long maxLatency;
-    private long minLatency = Long.MAX_VALUE;
-    private long totalLatency = 0;
-    private long count = 0;
+    private long packetsSent; //发送包个数
+    private long packetsReceived; //接收包个数
+    private long maxLatency; //最长延迟
+    private long minLatency = Long.MAX_VALUE; //最短延迟
+    private long totalLatency = 0; //总延迟
+    private long count = 0;//延迟次数
     private AtomicLong fsyncThresholdExceedCount = new AtomicLong(0);
 
-    private final Provider provider;
+    private final Provider provider; //Provider对象，提供部分统计数据
 
     public interface Provider {
-        public long getOutstandingRequests();
-        public long getLastProcessedZxid();
-        public String getState();
-        public int getNumAliveConnections();
+        public long getOutstandingRequests();//获取队列中还没有被处理的请求数量
+        public long getLastProcessedZxid(); ///获取最后一个处理的zxid
+        public String getState();//获取服务器状态
+        public int getNumAliveConnections();//获取存活的客户端连接总数
     }
     
     public ServerStats(Provider provider) {

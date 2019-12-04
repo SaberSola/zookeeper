@@ -45,16 +45,22 @@ import org.slf4j.LoggerFactory;
  * above the implementations 
  * of txnlog and snapshot 
  * classes
+ * 其封装了TxnLog和SnapShot
  */
 public class FileTxnSnapLog {
     //the direcotry containing the 
     //the transaction logs
+    //事务log的文件路径
     private final File dataDir;
     //the directory containing the
     //the snapshot directory
+    //快照文件目录
     private final File snapDir;
+    //事务日志
     private TxnLog txnLog;
+    //快照
     private SnapShot snapLog;
+    //版本
     public final static int VERSION = 2;
     public final static String version = "version-";
     
@@ -66,6 +72,7 @@ public class FileTxnSnapLog {
      * restore to gather information
      * while the data is being 
      * restored.
+     * 数据重新加载的时候会调这个接口
      */
     public interface PlayBackListener {
         void onTxnLoaded(TxnHeader hdr, Record rec);
@@ -108,7 +115,7 @@ public class FileTxnSnapLog {
             checkLogDir();
             checkSnapDir();
         }
-
+        //赋值
         txnLog = new FileTxnLog(this.dataDir);
         snapLog = new FileSnap(this.snapDir);
     }
@@ -168,10 +175,12 @@ public class FileTxnSnapLog {
      * @param listener the playback listener to run on the 
      * database restoration
      * @return the highest zxid restored
+     * 重新加载
      * @throws IOException
      */
     public long restore(DataTree dt, Map<Long, Integer> sessions, 
             PlayBackListener listener) throws IOException {
+        // 根据snap文件反序列化dt和sessions
         snapLog.deserialize(dt, sessions);
         return fastForwardFromEdits(dt, sessions, listener);
     }
@@ -180,6 +189,9 @@ public class FileTxnSnapLog {
      * This function will fast forward the server database to have the latest
      * transactions in it.  This is the same as restore, but only reads from
      * the transaction logs and not restores from a snapshot.
+     * 此函数将快速转发服务器数据库，使其具有最新的
+     * 其中的事务。这与restore相同，但只读取
+     *事务记录而不是从快照还原。
      * @param dt the datatree to write transactions to.
      * @param sessions the sessions to be restored.
      * @param listener the playback listener to run on the
@@ -189,32 +201,38 @@ public class FileTxnSnapLog {
      */
     public long fastForwardFromEdits(DataTree dt, Map<Long, Integer> sessions,
                                      PlayBackListener listener) throws IOException {
+        //初始化事务Log
         FileTxnLog txnLog = new FileTxnLog(dataDir);
+        // 获取比最后处理的zxid+1大的log文件的迭代器
         TxnIterator itr = txnLog.read(dt.lastProcessedZxid+1);
+
+        // 最大的zxid
         long highestZxid = dt.lastProcessedZxid;
         TxnHeader hdr;
         try {
             while (true) {
                 // iterator points to 
                 // the first valid txn when initialized
-                hdr = itr.getHeader();
+                hdr = itr.getHeader();//获取事务log header
                 if (hdr == null) {
                     //empty logs 
-                    return dt.lastProcessedZxid;
+                    return dt.lastProcessedZxid; //是空log文件
                 }
                 if (hdr.getZxid() < highestZxid && highestZxid != 0) {
                     LOG.error("{}(higestZxid) > {}(next log) for type {}",
                             new Object[] { highestZxid, hdr.getZxid(),
                                     hdr.getType() });
                 } else {
-                    highestZxid = hdr.getZxid();
+                    highestZxid = hdr.getZxid();// 重新赋值highestZxid
                 }
                 try {
+                    //在datatree上处理事务
                     processTransaction(hdr,dt,sessions, itr.getTxn());
                 } catch(KeeperException.NoNodeException e) {
                    throw new IOException("Failed to process transaction type: " +
                          hdr.getType() + " error: " + e.getMessage(), e);
                 }
+                //没处理一个事务log
                 listener.onTxnLoaded(hdr, itr.getTxn());
                 if (!itr.next()) 
                     break;
@@ -233,13 +251,18 @@ public class FileTxnSnapLog {
      * @param dt the datatree to apply transaction to
      * @param sessions the sessions to be restored
      * @param txn the transaction to be applied
+     *
+     * 在datatree 处理事务
+     *
      */
     public void processTransaction(TxnHeader hdr,DataTree dt,
             Map<Long, Integer> sessions, Record txn)
         throws KeeperException.NoNodeException {
         ProcessTxnResult rc;
         switch (hdr.getType()) {
-        case OpCode.createSession:
+        case OpCode.createSession://创建事务类型
+
+            // 添加进会话
             sessions.put(hdr.getClientId(),
                     ((CreateSessionTxn) txn).getTimeOut());
             if (LOG.isTraceEnabled()) {
@@ -250,6 +273,7 @@ public class FileTxnSnapLog {
                                 + ((CreateSessionTxn) txn).getTimeOut());
             }
             // give dataTree a chance to sync its lastProcessedZxid
+            //处理事务
             rc = dt.processTxn(hdr, txn);
             break;
         case OpCode.closeSession:
@@ -259,6 +283,7 @@ public class FileTxnSnapLog {
                         "playLog --- close session in log: 0x"
                                 + Long.toHexString(hdr.getClientId()));
             }
+            //处理事务
             rc = dt.processTxn(hdr, txn);
             break;
         default:
@@ -292,6 +317,7 @@ public class FileTxnSnapLog {
      * @param sessionsWithTimeouts the sesssion timeouts to be
      * serialized onto disk
      * @throws IOException
+     * 保存datatree 和sessions到快照文件
      */
     public void save(DataTree dataTree,
             ConcurrentHashMap<Long, Integer> sessionsWithTimeouts)

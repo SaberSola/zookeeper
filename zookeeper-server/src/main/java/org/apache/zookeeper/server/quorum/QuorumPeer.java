@@ -90,6 +90,9 @@ import org.slf4j.LoggerFactory;
  * </pre>
  *
  * The request for the current leader will consist solely of an xid: int xid;
+ *
+ * Quorum是集群模式下特有的对象，是Zookeeper服务器实例（ZooKeeperServer）的托管者，QuorumPeer代表了集群中的一台机器
+ * 在运行期间，QuorumPeer会不断检测当前服务器实例的运行状态，同时根据情况发起Leader选举。
  */
 public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider {
     private static final Logger LOG = LoggerFactory.getLogger(QuorumPeer.class);
@@ -111,7 +114,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
      * bootup and only thrown away in case of a truncate
      * message from the leader
      */
-    private ZKDatabase zkDb;
+    private ZKDatabase zkDb; //zkDb
 
     public static class QuorumServer {
         private QuorumServer(long id, InetSocketAddress addr,
@@ -633,10 +636,10 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
     
     @Override
     public synchronized void start() {
-        loadDataBase();//加载database
-        cnxnFactory.start();        
-        startLeaderElection();
-        super.start();
+        loadDataBase();//从事务日志目录dataLogDir和数据快照目录dataDir中恢复出DataTree数据
+        cnxnFactory.start();////开启对客户端的连接端口,启动ServerCnxnFactory主线程
+        startLeaderElection();//创建选举算法
+        super.start();        ////启动QuorumPeer线程，在该线程中进行服务器状态的检查
     }
 
     private void loadDataBase() {
@@ -701,6 +704,8 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         responder.running = false;
         responder.interrupt();
     }
+
+    //完成自己的投票以及投票算法的获取
     synchronized public void startLeaderElection() {
     	try {
     		currentVote = new Vote(myid, getLastLoggedZxid(), getCurrentEpoch());

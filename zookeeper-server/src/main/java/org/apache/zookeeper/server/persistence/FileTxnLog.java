@@ -277,19 +277,22 @@ public class FileTxnLog implements TxnLog {
      * @param logDirList array of files
      * @param snapshotZxid return files at, or before this zxid
      * @return
+     * 找出 <= snapshotZxid 所有的logFile文件
+     *
      */
     public static File[] getLogFiles(File[] logDirList,long snapshotZxid) {
-        List<File> files = Util.sortDataDir(logDirList, LOG_FILE_PREFIX, true);
-        long logZxid = 0;
+        List<File> files = Util.sortDataDir(logDirList, LOG_FILE_PREFIX, true);//获取log文件 并且排序
+        long logZxid = 0;//日志zxid
         // Find the log file that starts before or at the same time as the
         // zxid of the snapshot
         for (File f : files) {
+            // 从文件中获取zxid 文件名称
             long fzxid = Util.getZxidFromName(f.getName(), LOG_FILE_PREFIX);
             if (fzxid > snapshotZxid) {
                 continue;
             }
             // the files
-            // are sorted with zxid's
+            // are sorted with zxid's 排序
             if (fzxid > logZxid) {
                 logZxid = fzxid;
             }
@@ -300,8 +303,9 @@ public class FileTxnLog implements TxnLog {
             if (fzxid < logZxid) {
                 continue;
             }
-            v.add(f);
+            v.add(f);//添加
         }
+        //返回File[]数组
         return v.toArray(new File[0]);
 
     }
@@ -309,24 +313,25 @@ public class FileTxnLog implements TxnLog {
     /**
      * get the last zxid that was logged in the transaction logs
      * @return the last zxid logged in the transaction logs
+     *
      */
     public long getLastLoggedZxid() {
-        File[] files = getLogFiles(logDir.listFiles(), 0);
+        File[] files = getLogFiles(logDir.listFiles(), 0);//排序好的log文件
         long maxLog=files.length>0?
-                Util.getZxidFromName(files[files.length-1].getName(),LOG_FILE_PREFIX):-1;
+                Util.getZxidFromName(files[files.length-1].getName(),LOG_FILE_PREFIX):-1;//找到最大的zxid
 
         // if a log file is more recent we must scan it to find
         // the highest zxid
-        long zxid = maxLog;
+        long zxid = maxLog;//最大的事务Id
         TxnIterator itr = null;
         try {
             FileTxnLog txn = new FileTxnLog(logDir);
-            itr = txn.read(maxLog);
+            itr = txn.read(maxLog);//获取迭代器
             while (true) {
                 if(!itr.next())
                     break;
-                TxnHeader hdr = itr.getHeader();
-                zxid = hdr.getZxid();
+                TxnHeader hdr = itr.getHeader();//获取事务文件的头部
+                zxid = hdr.getZxid();//从header获取事务Id
             }
         } catch (IOException e) {
             LOG.warn("Unexpected exception", e);
@@ -349,17 +354,18 @@ public class FileTxnLog implements TxnLog {
     /**
      * commit the logs. make sure that evertyhing hits the
      * disk
+     * commit函数提交日志到磁盘
      */
     public synchronized void commit() throws IOException {
-        if (logStream != null) {
+        if (logStream != null) {//不为null先刷下磁盘
             logStream.flush();
         }
         for (FileOutputStream log : streamsToFlush) {
-            log.flush();
-            if (forceSync) {
-                long startSyncNS = System.nanoTime();
+            log.flush(); // 强制写到底层输出流中
+            if (forceSync) {//是否强制同步
+                long startSyncNS = System.nanoTime(); //开始同步时间
 
-                log.getChannel().force(false);
+                log.getChannel().force(false); //刷新到磁盘
 
                 long syncElapsedMS =
                     TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startSyncNS);
@@ -376,7 +382,7 @@ public class FileTxnLog implements TxnLog {
             }
         }
         while (streamsToFlush.size() > 1) {
-            streamsToFlush.removeFirst().close();
+            streamsToFlush.removeFirst().close();//关闭
         }
     }
 
@@ -394,6 +400,7 @@ public class FileTxnLog implements TxnLog {
      * truncate the current transaction logs
      * @param zxid the zxid to truncate the logs to
      * @return true if successful false if not
+     * 该函数用于清空大于给定zxid的所有事务日志。
      */
     public boolean truncate(long zxid) throws IOException {
         FileTxnIterator itr = null;

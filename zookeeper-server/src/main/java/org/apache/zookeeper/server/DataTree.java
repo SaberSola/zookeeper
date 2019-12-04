@@ -713,6 +713,7 @@ public class DataTree {
      */
     public ProcessTxnResult processTxn(TxnHeader header, Record txn)
     {
+        //事务处理结果
         ProcessTxnResult rc = new ProcessTxnResult();
 
         try {
@@ -722,11 +723,14 @@ public class DataTree {
             rc.type = header.getType();
             rc.err = 0;
             rc.multiResult = null;
+            // 从事务头中解析出相应属性并保存至rc中
             switch (header.getType()) {
                 case OpCode.create:
-                    CreateTxn createTxn = (CreateTxn) txn;
+                    //显示转换
+                    CreateTxn createTxn = (CreateTxn) txn;//
+                    //创建路径
                     rc.path = createTxn.getPath();
-                    createNode(
+                    createNode(                   //创建节点
                             createTxn.getPath(),
                             createTxn.getData(),
                             createTxn.getAcl(),
@@ -734,14 +738,14 @@ public class DataTree {
                             createTxn.getParentCVersion(),
                             header.getZxid(), header.getTime());
                     break;
-                case OpCode.delete:
+                case OpCode.delete: //删除节点
                     DeleteTxn deleteTxn = (DeleteTxn) txn;
-                    rc.path = deleteTxn.getPath();
-                    deleteNode(deleteTxn.getPath(), header.getZxid());
+                    rc.path = deleteTxn.getPath();//删除路径
+                    deleteNode(deleteTxn.getPath(), header.getZxid());//删除路径
                     break;
-                case OpCode.setData:
+                case OpCode.setData: //设置数据
                     SetDataTxn setDataTxn = (SetDataTxn) txn;
-                    rc.path = setDataTxn.getPath();
+                    rc.path = setDataTxn.getPath();//节点路径
                     rc.stat = setData(setDataTxn.getPath(), setDataTxn
                             .getData(), setDataTxn.getVersion(), header
                             .getZxid(), header.getTime());
@@ -763,7 +767,7 @@ public class DataTree {
                     CheckVersionTxn checkTxn = (CheckVersionTxn) txn;
                     rc.path = checkTxn.getPath();
                     break;
-                case OpCode.multi:
+                case OpCode.multi: //多个事务
                     MultiTxn multiTxn = (MultiTxn) txn ;
                     List<Txn> txns = multiTxn.getTxns();
                     rc.multiResult = new ArrayList<ProcessTxnResult>();
@@ -775,7 +779,7 @@ public class DataTree {
                         }
                     }
 
-                    boolean post_failed = false;
+                    boolean post_failed = false;  //遍历事务列表，确定每个事务类型并进行相应操作
                     for (Txn subtxn : txns) {
                         ByteBuffer bb = ByteBuffer.wrap(subtxn.getData());
                         Record record = null;
@@ -850,6 +854,7 @@ public class DataTree {
          * case where the snapshot contains data ahead of the zxid associated
          * with the file.
          */
+        // 事务处理结果中保存的zxid大于已经被处理的最大的zxid，则重新赋值
         if (rc.zxid > lastProcessedZxid) {
         	lastProcessedZxid = rc.zxid;
         }

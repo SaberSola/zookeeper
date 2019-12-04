@@ -71,6 +71,7 @@ public class FilePadding {
      *
      * @param fileChannel the fileChannel of the file to be padded
      * @throws IOException
+     * 如果不满64M用0填充
      */
     long padFile(FileChannel fileChannel) throws IOException {
         long newFileSize = calculateFileSizeWithPadding(fileChannel.position(), currentSize, preAllocSize);
