@@ -785,6 +785,7 @@ public class FastLeaderElection implements Election {
      * Starts a new round of leader election. Whenever our QuorumPeer
      * changes its state to LOOKING, this method is invoked, and it
      * sends notifications to all other peers.
+     * 投票算法
      */
     public Vote lookForLeader() throws InterruptedException {
         try {

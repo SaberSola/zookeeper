@@ -86,15 +86,15 @@ public class Vote {
         this.version = 0x0;
     }
     
-    final private int version;
+    final private int version;//版本
     
-    final private long id;
+    final private long id;    //serverId
     
-    final private long zxid;
+    final private long zxid;  //事务id
     
-    final private long electionEpoch;
+    final private long electionEpoch; //选举的epoch
     
-    final private long peerEpoch;
+    final private long peerEpoch;    //
     
     public int getVersion() {
         return version;
