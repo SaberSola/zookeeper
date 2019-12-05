@@ -541,14 +541,15 @@ public class QuorumCnxManager {
     /**
      * Processes invoke this message to queue a message to send. Currently, 
      * only leader election uses it.
+     * 将消息根据sid添加进recv队列或者send队列,间接调用send，recv的生产
      */
     public void toSend(Long sid, ByteBuffer b) {
         /*
          * If sending message to myself, then simply enqueue it (loopback).
          */
-        if (this.mySid == sid) {
+        if (this.mySid == sid) {//自己发个自己的
              b.position(0);
-             addToRecvQueue(new Message(b.duplicate(), sid));
+             addToRecvQueue(new Message(b.duplicate(), sid));//放入recive队列
             /*
              * Otherwise send to the corresponding thread to send.
              */
@@ -557,13 +558,13 @@ public class QuorumCnxManager {
               * Start a new connection if doesn't have one already.
               */
              ArrayBlockingQueue<ByteBuffer> bq = new ArrayBlockingQueue<ByteBuffer>(SEND_CAPACITY);
-             ArrayBlockingQueue<ByteBuffer> bqExisting = queueSendMap.putIfAbsent(sid, bq);
+             ArrayBlockingQueue<ByteBuffer> bqExisting = queueSendMap.putIfAbsent(sid, bq);//放入 sendQueue存在返回旧的
              if (bqExisting != null) {
                  addToSendQueue(bqExisting, b);
              } else {
                  addToSendQueue(bq, b);
              }
-             connectOne(sid);
+             connectOne(sid);//连接
                 
         }
     }
@@ -632,6 +633,7 @@ public class QuorumCnxManager {
     /**
      * Try to establish a connection with each server if one
      * doesn't exist.
+     * 连接所有的sid
      */
     
     public void connectAll(){
@@ -646,8 +648,9 @@ public class QuorumCnxManager {
 
     /**
      * Check if all queues are empty, indicating that all messages have been delivered.
+     *
      */
-    boolean haveDelivered() {
+    boolean haveDelivered() {//如果有一个队列是空的，代表发送过了，和注释不一致
         for (ArrayBlockingQueue<ByteBuffer> queue : queueSendMap.values()) {
             LOG.debug("Queue size: " + queue.size());
             if (queue.size() == 0) {
@@ -1100,7 +1103,7 @@ public class QuorumCnxManager {
      */
     private void addToSendQueue(ArrayBlockingQueue<ByteBuffer> queue,
           ByteBuffer buffer) {
-        if (queue.remainingCapacity() == 0) {
+        if (queue.remainingCapacity() == 0) {//发送队列长度为1 满了就把之前的remove
             try {
                 queue.remove();
             } catch (NoSuchElementException ne) {
@@ -1110,7 +1113,7 @@ public class QuorumCnxManager {
             }
         }
         try {
-            queue.add(buffer);
+            queue.add(buffer);//放入队列
         } catch (IllegalStateException ie) {
             // This should never happen
             LOG.error("Unable to insert an element in the queue " + ie);
@@ -1159,12 +1162,13 @@ public class QuorumCnxManager {
      *
      * @param msg
      *          Reference to the message to be inserted in the queue
+     * 消费相关函数
      */
     public void addToRecvQueue(Message msg) {
         synchronized(recvQLock) {
-            if (recvQueue.remainingCapacity() == 0) {
+            if (recvQueue.remainingCapacity() == 0) {//队列满了就remove
                 try {
-                    recvQueue.remove();
+                    recvQueue.remove();//从队列头部remove
                 } catch (NoSuchElementException ne) {
                     // element could be removed by poll()
                      LOG.debug("Trying to remove from an empty " +

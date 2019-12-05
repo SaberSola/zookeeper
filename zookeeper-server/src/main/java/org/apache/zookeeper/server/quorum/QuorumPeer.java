@@ -248,6 +248,12 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
         public LearnerType type = LearnerType.PARTICIPANT;
     }
 
+    /**
+     * LOOKING：寻找Leader状态。当服务器处于该状态时，它会认为当前集群中没有Leader，因此需要进入Leader选举状态。
+     * FOLLOWING：跟随者状态。表明当前服务器角色是Follower。
+     * LEADING：领导者状态。表明当前服务器角色是Leader。
+     * OBSERVING：观察者状态。表明当前服务器角色是Observer。
+     */
     public enum ServerState {
         LOOKING, FOLLOWING, LEADING, OBSERVING;
     }
@@ -872,7 +878,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
             return observer.zk;
         return null;
     }
-
+    //调用start方法后run()
     @Override
     public void run() {
         setName("QuorumPeer" + "[myid=" + getId() + "]" +
