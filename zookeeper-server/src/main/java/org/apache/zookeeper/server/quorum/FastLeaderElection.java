@@ -1038,7 +1038,12 @@ public class FastLeaderElection implements Election {
      * @param sid     Server identifier
      * @return boolean
      */
-    private boolean validVoter(long sid) {
+    private boolean validVoter(long sid)
+    {
         return self.getVotingView().containsKey(sid);
+    }
+
+    public static void main(String[] args) {
+
     }
 }
