@@ -72,7 +72,7 @@ public class FileTxnSnapLog {
      * restore to gather information
      * while the data is being 
      * restored.
-     * 数据重新加载的时候会调这个接口
+     * 根据日志恢复dataTree，session时的回调函数
      */
     public interface PlayBackListener {
         void onTxnLoaded(TxnHeader hdr, Record rec);
@@ -175,7 +175,7 @@ public class FileTxnSnapLog {
      * @param listener the playback listener to run on the 
      * database restoration
      * @return the highest zxid restored
-     * 重新加载
+     * 重新加载 日志文件
      * @throws IOException
      */
     public long restore(DataTree dt, Map<Long, Integer> sessions, 
@@ -232,7 +232,7 @@ public class FileTxnSnapLog {
                    throw new IOException("Failed to process transaction type: " +
                          hdr.getType() + " error: " + e.getMessage(), e);
                 }
-                //没处理一个事务log
+                //没处理一次需要回调一次接口
                 listener.onTxnLoaded(hdr, itr.getTxn());
                 if (!itr.next()) 
                     break;

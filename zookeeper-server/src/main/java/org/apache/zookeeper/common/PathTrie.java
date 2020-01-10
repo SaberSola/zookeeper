@@ -39,8 +39,16 @@ import org.slf4j.LoggerFactory;
  *      (bc)
  *   cf/
  *   (cf)
- */    
-public class PathTrie {
+ */
+
+ /**
+  *   字典树完成配额目录的增删查
+  *   将拥有对应配额属性的节点设置标记属性property，源码会讲
+  *   在zk中的目录结构为/zookeeper/quota/xxx(可以有多级目录)/zookeeper_limits
+  *   配额其实就是节点数量和节点数据大小的限制
+  *   PathTrie维护字典树
+  */
+ public class PathTrie {//这里是管理配额的
     /**
      * the logger for this class
      */
@@ -48,19 +56,31 @@ public class PathTrie {
     
     /**
      * the root node of PathTrie
+     * 1.addChild方法时，注意在调用方设置child的parent为当前节点
+     * 2.deleteChild方法似乎有bug(或者说不准确),就是把儿子的儿子个数为1当成一种处理,0或者>=2当成另外一种处理
+     * 3.property的意义:设置了配额的节点，该属性为true，否则为false
+     * 比如说:设置了/a/b/c这个路径拥有配额，那么字典树中，property是这样的
+     *
+     *             root
+     *           /
+     *         a
+     *       /
+     *     b
+     *   /
+     * c(property:true)
      */
-    private final TrieNode rootNode ;
+    private final TrieNode rootNode ;//配额的根节点
     
     static class TrieNode {
-        boolean property = false;
-        final HashMap<String, TrieNode> children;
+        boolean property = false;//属性,设置了配额的节点
+        final HashMap<String, TrieNode> children;//记录子节点相对路径 与 TrieNode的mapping
         TrieNode parent = null;
         /**
          * create a trienode with parent
          * as parameter
          * @param parent the parent of this trienode
          */
-        private TrieNode(TrieNode parent) {
+        private TrieNode(TrieNode parent) {//设置parent
             children = new HashMap<String, TrieNode>();
             this.parent = parent;
         }
@@ -124,14 +144,14 @@ public class PathTrie {
                 }
                 TrieNode childNode = children.get(childName);
                 // this is the only child node.
-                if (childNode.getChildren().length == 1) { 
-                    childNode.setParent(null);
+                if (childNode.getChildren().length == 1) { //如果这个儿子只有1个儿子,那么就把这个儿子丢掉
+                    childNode.setParent(null);//被删除的子节点,parent设置为空
                     children.remove(childName);
                 }
                 else {
                     // their are more child nodes
                     // so just reset property.
-                    childNode.setProperty(false);
+                    childNode.setProperty(false);//否则这个儿子还有其他儿子，标记它不是没有配额限制,这里有个bug，就是数量为0时，也进入这个逻辑
                 }
             }
         }
@@ -141,6 +161,7 @@ public class PathTrie {
          * to the input childname
          * @param childName the name of the child
          * @return the child of a node
+         * //根据childName从map中取出对应的TrieNode
          */
         TrieNode getChild(String childName) {
             synchronized(children) {

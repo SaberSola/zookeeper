@@ -853,18 +853,18 @@ public class FastLeaderElection implements Election {
                  * Remove next notification from queue, times out after 2 times
                  * the termination time
                  */
-                Notification n = recvqueue.poll(notTimeout, //接收投票
+                Notification n = recvqueue.poll(notTimeout, //接收投票 //从队列中不断获取
                         TimeUnit.MILLISECONDS);
 
                 /*
                  * Sends more notifications if haven't received enough.
                  * Otherwise processes new notification.
                  */
-                if(n == null){
+                if(n == null){//取不到投票
                     if(manager.haveDelivered()){
-                        sendNotifications();
+                        sendNotifications();//发送自己的选票
                     } else {
-                        manager.connectAll();
+                        manager.connectAll();//同步连接上所有有vote资格的sid
                     }
 
                     /*
@@ -875,15 +875,15 @@ public class FastLeaderElection implements Election {
                             tmpTimeOut : maxNotificationInterval);
                     LOG.info("Notification time out: " + notTimeout);
                 }
-                else if(validVoter(n.sid) && validVoter(n.leader)) {
+                else if(validVoter(n.sid) && validVoter(n.leader)) {//验证sid和选举的leaderid是不是在当前服务器内
                     /*
                      * Only proceed if the vote comes from a replica in the
                      * voting view for a replica in the voting view.
                      */
-                    switch (n.state) {
-                    case LOOKING:
+                    switch (n.state) {//判断状态
+                    case LOOKING://选择阶段
                         // If notification > current, replace and send messages out
-                        if (n.electionEpoch > logicalclock.get()) {
+                        if (n.electionEpoch > logicalclock.get()) {//electionEpoch > 当前的轮次 说明是新的一轮选举投票
                             logicalclock.set(n.electionEpoch);
                             recvset.clear();
                             if(totalOrderPredicate(n.leader, n.zxid, n.peerEpoch,

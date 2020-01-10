@@ -35,18 +35,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
+//List<acl> 和 id的转换
 public class ReferenceCountedACLCache {
     private static final Logger LOG = LoggerFactory.getLogger(ReferenceCountedACLCache.class);
 
-    final Map<Long, List<ACL>> longKeyMap =
-            new HashMap<Long, List<ACL>>();
+    final Map<Long, List<ACL>> longKeyMap =  new HashMap<Long, List<ACL>>();//一个long值对应的acl的列表
 
-    final Map<List<ACL>, Long> aclKeyMap =
-            new HashMap<List<ACL>, Long>();
+    final Map<List<ACL>, Long> aclKeyMap = new HashMap<List<ACL>, Long>();//ACLd的列表对应的Long值
 
-    final Map<Long, AtomicLongWithEquals> referenceCounter =
-            new HashMap<Long, AtomicLongWithEquals>();
-    private static final long OPEN_UNSAFE_ACL_ID = -1L;
+    final Map<Long, AtomicLongWithEquals> referenceCounter = new HashMap<Long, AtomicLongWithEquals>();//key 是一个acl列表映射的long值 value是被引用的次数
+
+    private static final long OPEN_UNSAFE_ACL_ID = -1L; //记录当前acl对应的long值的id(不断增加)
 
     /**
      * these are the number of acls that we have in the datatree

@@ -139,15 +139,15 @@ public class FileTxnLog implements TxnLog {
     //数据
     long dbId;
 
-    //
+    //刷盘的文件流
     private LinkedList<FileOutputStream> streamsToFlush =
         new LinkedList<FileOutputStream>();
     File logFileWrite = null;
 
-    //
+    //填充文件
     private FilePadding filePadding = new FilePadding();
 
-    //
+    //服务状态
     private ServerStats serverStats;
 
     /**

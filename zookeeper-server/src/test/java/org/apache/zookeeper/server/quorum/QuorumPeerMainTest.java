@@ -136,10 +136,6 @@ public class QuorumPeerMainTest extends QuorumPeerTestBase {
                 CreateMode.PERSISTENT);
         assertEquals(new String(zk.getData("/foo_q2", null, null)), "foobar2");
         zk.close();
-
-        q1.shutdown();
-        q2.shutdown();
-
         Thread.sleep(10000000000L);
         Assert.assertTrue("waiting for server 1 down",
                 ClientBase.waitForServerDown("127.0.0.1:" + CLIENT_PORT_QP1,

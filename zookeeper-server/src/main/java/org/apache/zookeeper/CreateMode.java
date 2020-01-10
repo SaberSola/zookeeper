@@ -31,21 +31,21 @@ public enum CreateMode {
     /**
      * The znode will not be automatically deleted upon client's disconnect.
      */
-    PERSISTENT (0, false, false),
+    PERSISTENT (0, false, false),//永久节点
     /**
     * The znode will not be automatically deleted upon client's disconnect,
     * and its name will be appended with a monotonically increasing number.
     */
-    PERSISTENT_SEQUENTIAL (2, false, true),
+    PERSISTENT_SEQUENTIAL (2, false, true), //永久递增节点
     /**
      * The znode will be deleted upon the client's disconnect.
      */
-    EPHEMERAL (1, true, false),
+    EPHEMERAL (1, true, false), //临时节点
     /**
      * The znode will be deleted upon the client's disconnect, and its name
      * will be appended with a monotonically increasing number.
      */
-    EPHEMERAL_SEQUENTIAL (3, true, true);
+    EPHEMERAL_SEQUENTIAL (3, true, true); //临时节点 递增
 
     private static final Logger LOG = LoggerFactory.getLogger(CreateMode.class);
 

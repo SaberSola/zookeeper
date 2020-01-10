@@ -22,6 +22,8 @@ package org.apache.zookeeper;
  * this class manages quotas
  * and has many other utils
  * for quota
+ * 管理配额
+ * 这个类主要是定义几个管理配额的目录名称，为DataTree处理配额提供定义
  */
 public class Quotas {
 
@@ -30,19 +32,18 @@ public class Quotas {
 
     /** the zookeeper quota node that acts as the quota
      * management node for zookeeper */
-    public static final String quotaZookeeper = "/zookeeper/quota";
-
+    public static final String quotaZookeeper = "/zookeeper/quota";//配额目录
     /**
      * the limit node that has the limit of
      * a subtree
      */
-    public static final String limitNode = "zookeeper_limits";
+    public static final String limitNode = "zookeeper_limits";//node限制的结尾后缀
 
     /**
      * the stat node that monitors the limit of
      * a subtree.
      */
-    public static final String statNode = "zookeeper_stats";
+    public static final String statNode = "zookeeper_stats"; //node实际状态的结尾后缀
 
     /**
      * return the quota path associated with this
@@ -50,7 +51,7 @@ public class Quotas {
      * @param path the actual path in zookeeper.
      * @return the limit quota path
      */
-    public static String quotaPath(String path) {
+    public static String quotaPath(String path) {//zk某个节点path转换成对应的limit path
         return quotaZookeeper + path +
         "/" + limitNode;
     }
@@ -61,7 +62,7 @@ public class Quotas {
      * @param path the actual path in zookeeper
      * @return the stat quota path
      */
-    public static String statPath(String path) {
+    public static String statPath(String path) {//zk某个节点path转换成对应的stat path
         return quotaZookeeper + path + "/" +
         statNode;
     }

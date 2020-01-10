@@ -92,13 +92,13 @@ public class ZooDefs {
         /**
          * This Id represents anyone.
          */
-        public final Id ANYONE_ID_UNSAFE = new Id("world", "anyone");
+        public final Id ANYONE_ID_UNSAFE = new Id("world", "anyone");//固定用户为anyone，为所有Client端开放权限
 
         /**
          * This Id is only usable to set ACLs. It will get substituted with the
          * Id's the client authenticated with.
          */
-        public final Id AUTH_IDS = new Id("auth", "");
+        public final Id AUTH_IDS = new Id("auth", ""); //不使用任何id，代表任何已确认用户。
 
         /**
          * This is a completely open ACL .

@@ -46,11 +46,12 @@ public class LogFormatter {
      * @param args
      */
     public static void main(String[] args) throws Exception {
-        if (args.length != 1) {
+        String path = "/Users/zhanglei/codeing/persional/zookeeper/conf/test6975288473537511258.junit.dir/version-2/log.1";
+       /* if (args.length != 1) {
             System.err.println("USAGE: LogFormatter log_file");
             System.exit(2);
-        }
-        FileInputStream fis = new FileInputStream(args[0]);
+        }*/
+        FileInputStream fis = new FileInputStream(path);
         BinaryInputArchive logStream = BinaryInputArchive.getArchive(fis);
         FileHeader fhdr = new FileHeader();
         fhdr.deserialize(logStream, "fileheader");
