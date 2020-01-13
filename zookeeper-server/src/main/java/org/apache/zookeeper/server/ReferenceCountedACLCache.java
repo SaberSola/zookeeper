@@ -57,20 +57,21 @@ public class ReferenceCountedACLCache {
      * Increments the reference counter for this ACL.
      * @param acls
      * @return a long that map to the acls
+     * 把一个acl列表转为long
      */
     public synchronized Long convertAcls(List<ACL> acls) {
         if (acls == null)
             return OPEN_UNSAFE_ACL_ID;
 
         // get the value from the map
-        Long ret = aclKeyMap.get(acls);
-        if (ret == null) {
+        Long ret = aclKeyMap.get(acls);//
+        if (ret == null) {////如果没有记录，就对aclIndex进行incr，然后加入表
             ret = incrementIndex();
             longKeyMap.put(ret, acls);
             aclKeyMap.put(acls, ret);
         }
 
-        addUsage(ret);
+        addUsage(ret);//记录long的引用次数+1
 
         return ret;
     }
@@ -80,13 +81,14 @@ public class ReferenceCountedACLCache {
      *
      * @param longVal
      * @return a list of ACLs that map to the long
+     * 根据一个long转为
      */
     public synchronized List<ACL> convertLong(Long longVal) {
         if (longVal == null)
             return null;
         if (longVal == OPEN_UNSAFE_ACL_ID)
-            return ZooDefs.Ids.OPEN_ACL_UNSAFE;
-        List<ACL> acls = longKeyMap.get(longVal);
+            return ZooDefs.Ids.OPEN_ACL_UNSAFE; //-1代表的是所有权限 级 word:anyone
+        List<ACL> acls = longKeyMap.get(longVal);//获取acl列表
         if (acls == null) {
             LOG.error("ERROR: ACL not available for long " + longVal);
             throw new RuntimeException("Failed to fetch acls for " + longVal);
@@ -99,7 +101,7 @@ public class ReferenceCountedACLCache {
     }
 
     public synchronized void deserialize(InputArchive ia) throws IOException {
-        clear();
+        clear(); //反序列化清空所有记录
         int i = ia.readInt("map");
         while (i > 0) {
             Long val = ia.readLong("long");
@@ -124,8 +126,9 @@ public class ReferenceCountedACLCache {
         }
     }
 
+    //序列化
     public synchronized void serialize(OutputArchive oa) throws IOException {
-        oa.writeInt(longKeyMap.size(), "map");
+        oa.writeInt(longKeyMap.size(), "map"); //
         Set<Map.Entry<Long, List<ACL>>> set = longKeyMap.entrySet();
         for (Map.Entry<Long, List<ACL>> val : set) {
             oa.writeLong(val.getKey(), "long");
@@ -197,6 +200,9 @@ public class ReferenceCountedACLCache {
         }
     }
 
+
+    //继承AtomicLong类，实现equals方法
+    //用来记录引用次数
     private static class AtomicLongWithEquals extends AtomicLong {
 
         private static final long serialVersionUID = 3355155896813725462L;

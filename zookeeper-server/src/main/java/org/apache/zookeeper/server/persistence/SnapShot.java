@@ -29,7 +29,7 @@ import org.apache.zookeeper.server.DataTree;
  * snapshots.
  */
 public interface SnapShot {
-    
+
     /**
      * deserialize a data tree from the last valid snapshot and 
      * return the last zxid that was deserialized
@@ -39,30 +39,30 @@ public interface SnapShot {
      * @throws IOException
      *  反序列化
      */
-    long deserialize(DataTree dt, Map<Long, Integer> sessions) 
-        throws IOException;
-    
+    long deserialize(DataTree dt, Map<Long, Integer> sessions)
+            throws IOException;
+
     /**
      * persist the datatree and the sessions into a persistence storage
      * @param dt the datatree to be serialized
-     * @param sessions 
+     * @param sessions
      * @throws IOException
      * 序列胡
      */
-    void serialize(DataTree dt, Map<Long, Integer> sessions, 
-            File name) 
-        throws IOException;
-    
+    void serialize(DataTree dt, Map<Long, Integer> sessions,
+                   File name)
+            throws IOException;
+
     /**
      * find the most recent snapshot file
      * @return the most recent snapshot file
      * @throws IOException
      */
     File findMostRecentSnapshot() throws IOException;
-    
+
     /**
      * free resources from this snapshot immediately
      * @throws IOException
      */
     void close() throws IOException;
-} 
+}

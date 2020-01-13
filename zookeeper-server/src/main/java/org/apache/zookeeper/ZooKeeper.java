@@ -129,14 +129,12 @@ public class ZooKeeper {
      * We are implementing this as a nested class of ZooKeeper so that
      * the public methods will not be exposed as part of the ZooKeeper client
      * API.
+     * 监听管理
      */
     private static class ZKWatchManager implements ClientWatchManager {
-        private final Map<String, Set<Watcher>> dataWatches =
-            new HashMap<String, Set<Watcher>>();
-        private final Map<String, Set<Watcher>> existWatches =
-            new HashMap<String, Set<Watcher>>();
-        private final Map<String, Set<Watcher>> childWatches =
-            new HashMap<String, Set<Watcher>>();
+        private final Map<String, Set<Watcher>> dataWatches = new HashMap<String, Set<Watcher>>();  //针对数据的watch
+        private final Map<String, Set<Watcher>> existWatches = new HashMap<String, Set<Watcher>>(); //针对exist API相关的watch
+        private final Map<String, Set<Watcher>> childWatches = new HashMap<String, Set<Watcher>>(); //针对get
 
         private volatile Watcher defaultWatcher;
 
@@ -158,8 +156,9 @@ public class ZooKeeper {
             Set<Watcher> result = new HashSet<Watcher>();
 
             switch (type) {
-            case None:
-                result.add(defaultWatcher);
+
+            case None: //客户端和服务端建立连接 //所有的watch都需要通知一次
+                result.add(defaultWatcher);//默认watch
                 boolean clear = ClientCnxn.getDisableAutoResetWatch() &&
                         state != Watcher.Event.KeeperState.SyncConnected;
 
@@ -191,16 +190,16 @@ public class ZooKeeper {
                 }
 
                 return result;
-            case NodeDataChanged:
-            case NodeCreated:
+            case NodeDataChanged:  //数据改变事件
+            case NodeCreated:      //
                 synchronized (dataWatches) {
-                    addTo(dataWatches.remove(clientPath), result);
+                    addTo(dataWatches.remove(clientPath), result);//触发了一次需要移除
                 }
                 synchronized (existWatches) {
                     addTo(existWatches.remove(clientPath), result);
                 }
                 break;
-            case NodeChildrenChanged:
+            case NodeChildrenChanged:           //
                 synchronized (childWatches) {
                     addTo(childWatches.remove(clientPath), result);
                 }

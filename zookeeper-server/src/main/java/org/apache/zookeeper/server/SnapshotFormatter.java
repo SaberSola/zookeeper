@@ -45,7 +45,7 @@ public class SnapshotFormatter {
      * USAGE: SnapshotFormatter snapshot_file
      */
     public static void main(String[] args) throws Exception {
-        args = new String[]{"/Users/zhanglei/codeing/persional/zookeeper/conf/test6975288473537511258.junit.dir/version-2/snapshot.3ff"};
+        args = new String[]{"/Users/zhanglei/codeing/persional/zookeeper/conf/test5324386252563085205.junit.dir/version-2/snapshot.1e2"};
         if (args.length != 1) {
             System.err.println("USAGE: SnapshotFormatter snapshot_file");
             System.exit(2);
@@ -89,6 +89,7 @@ public class SnapshotFormatter {
         Set<String> children;
         synchronized(n) { // keep findbugs happy
             System.out.println(name);
+            System.out.println(dataTree);
             printStat(n.stat);
             if (n.data != null) {
                 System.out.println("  dataLength = " + n.data.length);

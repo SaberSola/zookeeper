@@ -21,6 +21,7 @@ package org.apache.zookeeper;
 import java.util.Set;
 
 /**
+ * 根据event得到需要通知的watcher
  */
 public interface ClientWatchManager {
     /**

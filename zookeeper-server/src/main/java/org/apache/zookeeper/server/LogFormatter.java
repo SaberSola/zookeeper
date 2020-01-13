@@ -46,7 +46,7 @@ public class LogFormatter {
      * @param args
      */
     public static void main(String[] args) throws Exception {
-        String path = "/Users/zhanglei/codeing/persional/zookeeper/conf/test6975288473537511258.junit.dir/version-2/log.1";
+        String path = "/Users/zhanglei/codeing/persional/zookeeper/conf/test5324386252563085205.junit.dir/version-2/log.1";
        /* if (args.length != 1) {
             System.err.println("USAGE: LogFormatter log_file");
             System.exit(2);
