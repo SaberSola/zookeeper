@@ -234,15 +234,15 @@ public class ZooKeeper {
     /**
      * Register a watcher for a particular path.
      */
-    abstract class WatchRegistration {
-        private Watcher watcher;
-        private String clientPath;
+    abstract class WatchRegistration { //client中管理watch的类
+        private Watcher watcher; //watch
+        private String clientPath;//znode 的path
         public WatchRegistration(Watcher watcher, String clientPath)
         {
             this.watcher = watcher;
             this.clientPath = clientPath;
         }
-
+        //根据response的resultCode来获取所有注册的path以及对应的watcher集合
         abstract protected Map<String, Set<Watcher>> getWatches(int rc);
 
         /**
@@ -1198,24 +1198,26 @@ public class ZooKeeper {
     public byte[] getData(final String path, Watcher watcher, Stat stat)
         throws KeeperException, InterruptedException
      {
-        final String clientPath = path;
-        PathUtils.validatePath(clientPath);
+        final String clientPath = path;//znode 的path
+        PathUtils.validatePath(clientPath);//验证路径
 
         // the watch contains the un-chroot path
-        WatchRegistration wcb = null;
+        WatchRegistration wcb = null;//封装watch管理
         if (watcher != null) {
-            wcb = new DataWatchRegistration(watcher, clientPath);
+            wcb = new DataWatchRegistration(watcher, clientPath);//封装
         }
 
-        final String serverPath = prependChroot(clientPath);
+        final String serverPath = prependChroot(clientPath);//获取server的路径 parent + node path
 
-        RequestHeader h = new RequestHeader();
+        RequestHeader h = new RequestHeader(); //生成请求头
+         //设置为getData请求
         h.setType(ZooDefs.OpCode.getData);
+        //封装request
         GetDataRequest request = new GetDataRequest();
         request.setPath(serverPath);
         request.setWatch(watcher != null);
         GetDataResponse response = new GetDataResponse();
-        ReplyHeader r = cnxn.submitRequest(h, request, response, wcb);
+        ReplyHeader r = cnxn.submitRequest(h, request, response, wcb);//client端体检请求
         if (r.getErr() != 0) {
             throw KeeperException.create(KeeperException.Code.get(r.getErr()),
                     clientPath);

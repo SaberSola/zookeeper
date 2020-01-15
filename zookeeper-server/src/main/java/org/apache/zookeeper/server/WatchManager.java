@@ -39,13 +39,11 @@ import org.apache.zookeeper.Watcher.Event.KeeperState;
 public class WatchManager {
     private static final Logger LOG = LoggerFactory.getLogger(WatchManager.class);
 
-    private final HashMap<String, HashSet<Watcher>> watchTable =
-        new HashMap<String, HashSet<Watcher>>();
+    private final HashMap<String, HashSet<Watcher>> watchTable = new HashMap<String, HashSet<Watcher>>();//path 和 watch的映射
 
-    private final HashMap<Watcher, HashSet<String>> watch2Paths =
-        new HashMap<Watcher, HashSet<String>>();
+    private final HashMap<Watcher, HashSet<String>> watch2Paths = new HashMap<Watcher, HashSet<String>>(); //watch 和path的映射
 
-    public synchronized int size(){
+    public synchronized int size(){//返回watch的数量
         int result = 0;
         for(Set<Watcher> watches : watchTable.values()) {
             result += watches.size();
@@ -53,6 +51,7 @@ public class WatchManager {
         return result;
     }
 
+    //注册path --> watch的集合
     public synchronized void addWatch(String path, Watcher watcher) {
         HashSet<Watcher> list = watchTable.get(path);
         if (list == null) {
@@ -73,7 +72,7 @@ public class WatchManager {
         paths.add(path);
     }
 
-    public synchronized void removeWatcher(Watcher watcher) {
+    public synchronized void removeWatcher(Watcher watcher) {//移除监听
         HashSet<String> paths = watch2Paths.remove(watcher);
         if (paths == null) {
             return;
@@ -89,13 +88,15 @@ public class WatchManager {
         }
     }
 
+    //触发watch
     public Set<Watcher> triggerWatch(String path, EventType type) {
         return triggerWatch(path, type, null);
     }
 
+    //触发watch
     public Set<Watcher> triggerWatch(String path, EventType type, Set<Watcher> supress) {
         WatchedEvent e = new WatchedEvent(type,
-                KeeperState.SyncConnected, path);
+                KeeperState.SyncConnected, path); //封装事件请求
         HashSet<Watcher> watchers;
         synchronized (this) {
             watchers = watchTable.remove(path);//触发一次就会remove

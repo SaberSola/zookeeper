@@ -1399,7 +1399,7 @@ public class ClientCnxn {
     public ReplyHeader submitRequest(RequestHeader h, Record request,
             Record response, WatchRegistration watchRegistration)
             throws InterruptedException {
-        ReplyHeader r = new ReplyHeader();
+        ReplyHeader r = new ReplyHeader();//生成回复头
         Packet packet = queuePacket(h, r, request, response, null, null, null,
                     null, watchRegistration);
         synchronized (packet) {
