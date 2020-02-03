@@ -451,6 +451,47 @@ public class ZooKeeper {
      *   5.初始化SendThread和EventThread
      *     客户端会创建两个核心网络线程SendThread和EventThread,前者用于管理客户端和服务端之间的所有网络I/O，后者则用于进行客户端的事件处理。
      *     同时，客户端还会将ClientCnxnSocket分配给SendThread作为底层网络I/O处理器，并初始化EventThread的待处理事件队列waitingEvents，用于存放所有等待被客户端处理的事情。
+     *
+     *   6.启动SendThread和EventThread。
+     *     SendThread首先会判断当前客户端的状态，进行一系列请理性工作，为客户端发送“会话创建”请求做准备。
+     *
+     *   7.获取一个服务器地址。
+     *     在开始创建TCP之前，SendThread首先需要获取一个Zookeeper服务器的目标地址， 这通常是从HostProvider中随机获取出一个地址，
+     *     然后委托给ClientCnxnSocket去创建与Zookeeper服务器之间的TCP连接。
+     *
+     *   8.创建TCP连接。获取一个服务器地址后，ClientCnxnSocket负责和服务器创建一个TCP长连接。
+     *
+     *   9.构造ConnectRequest请求。
+     *     在TCP连接创建完毕后，可能有的读者会认为，这样是否就说明已经和Zookeeper服务器完成连接了呢？
+     *     其实不然，上面的步骤只是纯粹地从网络TCP层完成了客户端与服务端之间的Socket连接，但远未完成Zookeeper客户端的会话创建。
+     *     SendThread会负责根据当前客户端的实际设置，构造出一个ConnectRequest请求，该请求代表了客户端试图与服务端创建一个会话。
+     *     同时，Zookeeper客户端还会进一步将该请求包装成网络I/O层的Packet对象，放入发送队列outgoingQueue中去。
+     *
+     *  10.发送请求。
+     *     当客户端请求准备完毕后，就可以开始向服务端发送请求了。
+     *     ClientCnxnSocket负责从outgoingQueue中取出一个待发送的Packet对象，将其序列化成ByteBuffer后，向服务端进行发送。
+     *
+     *  11.响应处理阶段
+     *     接受服务器端响应。ClientCnxnSocket接受到服务端响应后，会首先判断当前的客户端状态是否是“已初始化”，
+     *     如果尚未完成初始化，那么就认为该响应一定是会话创建请求的响应，直接交由readConnectResult方法来处理该响应。
+     *
+     *  12.处理Response。
+     *     ClientCnxnSocket会对接受到的服务端响应进行反序列化，得到ConnectResponse对象，并从中获取到Zookeeper服务端分配的会话SessionId。
+     *
+     *  13.连接成功。
+     *     连接成功后，一方面需要通知SendThread线程，进一步对客户端进行会话参数的设置，包括readTimeout和connectTimeout等，并更新客户端状态，
+     *     另一方面，需要通知地址管理器HostProvider当前成功连接的服务器地址。
+     *
+     *  14.生成事件:SyncConnected-None。
+     *     为了能够让上层应用感知到会话的成功创建，SendThread会生成一个事件SyncConnected-None，
+     *     代表客户端与服务器会话创建成功，并将该事件传递给EventThread线程。
+     *
+     *  15.查询Watcher。
+     *     EventThread线程收到事件后，会从ClientWatchManager管理器中查询出对应的Watcher，
+     *     针对SyncConnected-None事件，那么就直接找出存储的默认Watcher,然后将其放到EventThread的watingEvents队列中去。
+     *
+     *  16.处理事件。
+     *     EventThread不断的从watingEvents队列中取出待处理的Watcher对象，然后直接调用该对象的process接口方法，以达到触发Watcher的目的。
      */
     public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher,
             boolean canBeReadOnly)

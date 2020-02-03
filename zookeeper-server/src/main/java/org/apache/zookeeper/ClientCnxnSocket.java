@@ -44,30 +44,30 @@ import org.slf4j.LoggerFactory;
 abstract class ClientCnxnSocket {
     private static final Logger LOG = LoggerFactory.getLogger(ClientCnxnSocket.class);
 
-    protected boolean initialized;
+    protected boolean initialized;//是否初始化
 
     /**
      * This buffer is only used to read the length of the incoming message.
      */
-    protected final ByteBuffer lenBuffer = ByteBuffer.allocateDirect(4);
+    protected final ByteBuffer lenBuffer = ByteBuffer.allocateDirect(4);//仅仅用来读取 incoming message的长度
 
     /**
      * After the length is read, a new incomingBuffer is allocated in
      * readLength() to receive the full message.
      */
     protected ByteBuffer incomingBuffer = lenBuffer;
-    protected long sentCount = 0;
-    protected long recvCount = 0;
-    protected long lastHeard;
-    protected long lastSend;
-    protected long now;
-    protected ClientCnxn.SendThread sendThread;
+    protected long sentCount = 0;//send 次数
+    protected long recvCount = 0;//接收次数
+    protected long lastHeard; //上次接收事件
+    protected long lastSend;  //上次发送时间
+    protected long now;//当前时间
+    protected ClientCnxn.SendThread sendThread;//客户端发送请求线程
 
     /**
      * The sessionId is only available here for Log and Exception messages.
      * Otherwise the socket doesn't need to know it.
      */
-    protected long sessionId;
+    protected long sessionId;////仅仅用来辅助log和Exception记录用的
 
     void introduce(ClientCnxn.SendThread sendThread, long sessionId) {
         this.sendThread = sendThread;

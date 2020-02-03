@@ -90,7 +90,7 @@ import org.slf4j.LoggerFactory;
  * connected to as neede
  *
  * 客户端核心线程管理
- *
+ *ClientCnxn是Zookeeper客户端中负责维护客户端与服务端之间的网络连接并进行一系列网络通信的核心工作类
  */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public class ClientCnxn {
@@ -247,32 +247,33 @@ public class ClientCnxn {
 
     /**
      * This class allows us to pass the headers and the relevant records around.
+     * 通信协议
      */
     static class Packet {
-        RequestHeader requestHeader;
+        RequestHeader requestHeader;//请求头
 
-        ReplyHeader replyHeader;
+        ReplyHeader replyHeader;//响应头
 
-        Record request;
+        Record request;//请求体
 
-        Record response;
+        Record response;//响应体
 
-        ByteBuffer bb;
+        ByteBuffer bb;//序列化之后的byteBuffer
 
         /** Client's view of the path (may differ due to chroot) **/
-        String clientPath;
+        String clientPath;//client节点路径，不含chrootPath
         /** Servers's view of the path (may differ due to chroot) **/
-        String serverPath;
+        String serverPath;//server path
 
-        boolean finished;
+        boolean finished;//是否结束(已经得到响应才能结束)
 
-        AsyncCallback cb;
+        AsyncCallback cb;//异步回调
 
-        Object ctx;
+        Object ctx;//上下文
 
-        WatchRegistration watchRegistration;
+        WatchRegistration watchRegistration;//注册的watcher
 
-        public boolean readOnly;
+        public boolean readOnly;//只读
 
         /** Convenience ctor */
         Packet(RequestHeader requestHeader, ReplyHeader replyHeader,
@@ -294,7 +295,8 @@ public class ClientCnxn {
             this.watchRegistration = watchRegistration;
         }
 
-        public void createBB() {
+        //
+        public void createBB() {//序列化创建byteBuffer记录在bb字段中
             try {
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 BinaryOutputArchive boa = BinaryOutputArchive.getArchive(baos);

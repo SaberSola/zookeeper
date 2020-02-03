@@ -36,11 +36,15 @@ import org.apache.zookeeper.ZooDefs.OpCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * client
+ * 底层Socket通信的接口
+ */
 public class ClientCnxnSocketNIO extends ClientCnxnSocket {
     private static final Logger LOG = LoggerFactory
             .getLogger(ClientCnxnSocketNIO.class);
 
-    private final Selector selector = Selector.open();
+    private final Selector selector = Selector.open();//多路复用器
 
     private SelectionKey sockKey;
 
@@ -279,7 +283,12 @@ public class ClientCnxnSocketNIO extends ClientCnxnSocket {
             sendThread.primeConnection();
         }
     }
-    
+
+    /**
+     * zk的server地址
+     * @param addr
+     * @throws IOException
+     */
     @Override
     void connect(InetSocketAddress addr) throws IOException {
         SocketChannel sock = createSock();

@@ -50,9 +50,9 @@ public final class StaticHostProvider implements HostProvider {
 
     private final List<InetSocketAddress> serverAddresses = new ArrayList<InetSocketAddress>(5);
 
-    private int lastIndex = -1;
+    private int lastIndex = -1;//记录循环队列中当前正在连接的服务器地址的下标
 
-    private int currentIndex = -1;
+    private int currentIndex = -1;////记录循环队列中当前遍历到的下标
 
     private Resolver resolver;
 
@@ -140,13 +140,14 @@ public final class StaticHostProvider implements HostProvider {
 
         return hostString;
     }
-
+    //当前服务器的个数
     public int size() {
         return serverAddresses.size();
     }
 
+    //返回一个zk服务器地址让客户端进行连接
     public InetSocketAddress next(long spinDelay) {
-        currentIndex = ++currentIndex % serverAddresses.size();
+        currentIndex = ++currentIndex % serverAddresses.size();//随机
         if (currentIndex == lastIndex && spinDelay > 0) {
             try {
                 Thread.sleep(spinDelay);
@@ -172,6 +173,9 @@ public final class StaticHostProvider implements HostProvider {
         }
     }
 
+    /**
+     * 回调方法，若client和server创建连接成功，则用这个方法通知hostProvider
+     */
     @Override
     public void onConnected() {
         lastIndex = currentIndex;

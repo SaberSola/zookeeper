@@ -30,7 +30,9 @@ import org.apache.zookeeper.common.PathUtils;
  * 
  * The chrootPath member should be replaced by a Path object in issue
  * ZOOKEEPER-849.
- * 
+ * 解析服务器地址
+ * 它是一个服务器地址列表解析器，主要对zk传入的connectString做两个处理:
+ * 解析chrootPath以及保存服务器地址列表
  * @see org.apache.zookeeper.ZooKeeper
  */
 public final class ConnectStringParser {
