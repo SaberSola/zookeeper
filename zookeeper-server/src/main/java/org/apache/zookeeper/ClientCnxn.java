@@ -87,7 +87,9 @@ import org.slf4j.LoggerFactory;
 /**
  * This class manages the socket i/o for the client. ClientCnxn maintains a list
  * of available servers to connect to and "transparently" switches servers it is
- * connected to as needed.
+ * connected to as neede
+ *
+ * 客户端核心线程管理
  *
  */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
@@ -445,6 +447,7 @@ public class ClientCnxn {
         return name + suffix;
     }
 
+    //事件线程 处理服务端事件
     class EventThread extends ZooKeeperThread {
         private final LinkedBlockingQueue<Object> waitingEvents =
             new LinkedBlockingQueue<Object>();
@@ -725,6 +728,7 @@ public class ClientCnxn {
     /**
      * This class services the outgoing request queue and generates the heart
      * beats. It also spawns the ReadThread.
+     * I/O线程 处理客户端服务端网络通信
      */
     class SendThread extends ZooKeeperThread {
         private long lastPingSentNs;

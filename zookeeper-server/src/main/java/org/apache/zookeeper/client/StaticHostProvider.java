@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * Please be aware that although this class doesn't do any DNS caching, there're multiple levels of caching already
  * present across the stack like in JVM, OS level, hardware, etc. The best we could do here is to get the most recent
  * address from the underlying system which is considered up-to-date.
- *
+ * 客户端地址管理器
  */
 @InterfaceAudience.Public
 public final class StaticHostProvider implements HostProvider {

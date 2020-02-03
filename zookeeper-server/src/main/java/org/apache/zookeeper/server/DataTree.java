@@ -474,39 +474,40 @@ public class DataTree {
         if (parent == null) {
             throw new KeeperException.NoNodeException();
         }
-        synchronized (parent) {
+        synchronized (parent) {//移除child
             parent.removeChild(childName);
-            parent.stat.setPzxid(zxid);
-            long eowner = node.stat.getEphemeralOwner();
+            parent.stat.setPzxid(zxid);//最近更新的节点zxid
+            long eowner = node.stat.getEphemeralOwner();//当前节点是临时节点
             if (eowner != 0) {
                 HashSet<String> nodes = ephemerals.get(eowner);
                 if (nodes != null) {
                     synchronized (nodes) {
-                        nodes.remove(path);
+                        nodes.remove(path);//ephemerals对应sessionId的记录，删掉这个path
                     }
                 }
-            }
+            }//移除临时节点
             node.parent = null;
         }
         if (parentName.startsWith(procZookeeper)) {
             // delete the node in the trie.
-            if (Quotas.limitNode.equals(childName)) {
+            if (Quotas.limitNode.equals(childName)) {//这里表示配额限制节点
                 // we need to update the trie
                 // as well
-                pTrie.deletePath(parentName.substring(quotaZookeeper.length()));
+                pTrie.deletePath(parentName.substring(quotaZookeeper.length()));//删除配额路径
             }
         }
 
         // also check to update the quotas for this node
+        //检查更新这个节点的配额节点
         String lastPrefix;
         if ((lastPrefix = getMaxPrefixWithQuota(path)) != null) {
             // ok we have some match and need to update
-            updateCount(lastPrefix, -1);
+            updateCount(lastPrefix, -1);//如果是配额节点 更新数量
             int bytes = 0;
             synchronized (node) {
                 bytes = (node.data == null ? 0 : -(node.data.length));
             }
-            updateBytes(lastPrefix, bytes);
+            updateBytes(lastPrefix, bytes); //更新bytes大小
         }
         if (LOG.isTraceEnabled()) {
             ZooTrace.logTraceMessage(LOG, ZooTrace.EVENT_DELIVERY_TRACE_MASK,
@@ -514,21 +515,31 @@ public class DataTree {
             ZooTrace.logTraceMessage(LOG, ZooTrace.EVENT_DELIVERY_TRACE_MASK,
                     "childWatches.triggerWatch " + parentName);
         }
-        Set<Watcher> processed = dataWatches.triggerWatch(path,
-                EventType.NodeDeleted);
-        childWatches.triggerWatch(path, EventType.NodeDeleted, processed);
-        childWatches.triggerWatch(parentName.equals("") ? "/" : parentName,
-                EventType.NodeChildrenChanged);
+        Set<Watcher> processed = dataWatches.triggerWatch(path, EventType.NodeDeleted);//节点删除事件
+
+        childWatches.triggerWatch(path, EventType.NodeDeleted, processed);// 子节点删除事件？
+
+        childWatches.triggerWatch(parentName.equals("") ? "/" : parentName, EventType.NodeChildrenChanged);//父节点数据改变事件
     }
 
+    /**
+     * 设置节点内容
+     * @param path
+     * @param data
+     * @param version
+     * @param zxid
+     * @param time
+     * @return
+     * @throws KeeperException.NoNodeException
+     */
     public Stat setData(String path, byte data[], int version, long zxid,
                         long time) throws KeeperException.NoNodeException {
         Stat s = new Stat();
-        DataNode n = nodes.get(path);
+        DataNode n = nodes.get(path);//获取当前path节点
         if (n == null) {
             throw new KeeperException.NoNodeException();
         }
-        byte lastdata[] = null;
+        byte lastdata[] = null;//上一次的数据
         synchronized (n) {
             lastdata = n.data;
             n.data = data;
@@ -543,7 +554,7 @@ public class DataTree {
             this.updateBytes(lastPrefix, (data == null ? 0 : data.length)
                     - (lastdata == null ? 0 : lastdata.length));
         }
-        dataWatches.triggerWatch(path, EventType.NodeDataChanged);
+        dataWatches.triggerWatch(path, EventType.NodeDataChanged);//触发当前节点数据改变事件
         return s;
     }
 
@@ -567,6 +578,14 @@ public class DataTree {
         }
     }
 
+    /**
+     * 获取内容并注册watch
+     * @param path
+     * @param stat
+     * @param watcher
+     * @return
+     * @throws KeeperException.NoNodeException
+     */
     public byte[] getData(String path, Stat stat, Watcher watcher)
             throws KeeperException.NoNodeException {
         DataNode n = nodes.get(path);
@@ -575,13 +594,13 @@ public class DataTree {
         }
         synchronized (n) {
             n.copyStat(stat);
-            if (watcher != null) {
+            if (watcher != null) {//add watch
                 dataWatches.addWatch(path, watcher);
             }
             return n.data;
         }
     }
-
+    //获取node状态并注册watch
     public Stat statNode(String path, Watcher watcher)
             throws KeeperException.NoNodeException {
         Stat stat = new Stat();
@@ -598,6 +617,14 @@ public class DataTree {
         }
     }
 
+    /**
+     *
+     * @param path
+     * @param stat
+     * @param watcher
+     * @return
+     * @throws KeeperException.NoNodeException
+     */
     public List<String> getChildren(String path, Stat stat, Watcher watcher)
             throws KeeperException.NoNodeException {
         DataNode n = nodes.get(path);
@@ -756,13 +783,13 @@ public class DataTree {
                             .getData(), setDataTxn.getVersion(), header
                             .getZxid(), header.getTime());
                     break;
-                case OpCode.setACL:
+                case OpCode.setACL: //设置acl
                     SetACLTxn setACLTxn = (SetACLTxn) txn;
                     rc.path = setACLTxn.getPath();
                     rc.stat = setACL(setACLTxn.getPath(), setACLTxn.getAcl(),
                             setACLTxn.getVersion());
                     break;
-                case OpCode.closeSession:
+                case OpCode.closeSession://kill session事件
                     killSession(header.getClientId(), header.getZxid());
                     break;
                 case OpCode.error:

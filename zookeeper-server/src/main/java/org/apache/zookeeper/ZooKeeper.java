@@ -433,6 +433,24 @@ public class ZooKeeper {
      *             in cases of network failure
      * @throws IllegalArgumentException
      *             if an invalid chroot path is specified
+     *
+     *   1.初始化ZooKeeper对象
+     *         通过调用ZooKeeper的构造方法实例化一个ZooKeeper对象，在初始化过程中会创建一个客户端Watcher管理器ClientWatcherManager
+     *
+     *   2.设置会话默认Watcher
+     *       如果构造方法中传入了一个Watcher对象，那么客户端将这个Watcher对象作为默认Watcher保存到ClientWatcherManager中
+     *
+     *   3.构造ZK服务器地址列表管理器HostProvider
+     *         对于构造器中传入的服务器端地址，客户端将其保存在服务器地址列表管理器HostProvider中
+     *
+     *   4.创建并初始化客户端网络连接
+     *     ZooKeeper客户端首先会创建一个网络连接器ClientCnxn,用来管理客户端与服务器的网络交互。
+     *     另外，客户端在创建 ClientCnxn的同时还会初始化客户端两个核心队列outGoingQueue和pendingQueue,
+     *     分别作为客户端请求组发送队列和服务端 响应等待队列
+     *
+     *   5.初始化SendThread和EventThread
+     *     客户端会创建两个核心网络线程SendThread和EventThread,前者用于管理客户端和服务端之间的所有网络I/O，后者则用于进行客户端的事件处理。
+     *     同时，客户端还会将ClientCnxnSocket分配给SendThread作为底层网络I/O处理器，并初始化EventThread的待处理事件队列waitingEvents，用于存放所有等待被客户端处理的事情。
      */
     public ZooKeeper(String connectString, int sessionTimeout, Watcher watcher,
             boolean canBeReadOnly)
@@ -440,16 +458,20 @@ public class ZooKeeper {
     {
         LOG.info("Initiating client connection, connectString=" + connectString
                 + " sessionTimeout=" + sessionTimeout + " watcher=" + watcher);
-
         watchManager.defaultWatcher = watcher;
-
-        ConnectStringParser connectStringParser = new ConnectStringParser(
-                connectString);
-        HostProvider hostProvider = new StaticHostProvider(
-                connectStringParser.getServerAddresses());
-        cnxn = new ClientCnxn(connectStringParser.getChrootPath(),
-                hostProvider, sessionTimeout, this, watchManager,
-                getClientCnxnSocket(), canBeReadOnly);
+        //解析地址 ip:port
+        ConnectStringParser connectStringParser = new ConnectStringParser(connectString);
+        //把ip:port封装大鹏HostProvider
+        HostProvider hostProvider = new StaticHostProvider(connectStringParser.getServerAddresses());
+        //创建并初始化连接
+        cnxn = new ClientCnxn(
+                connectStringParser.getChrootPath(),//
+                hostProvider,
+                sessionTimeout,
+                this,
+                watchManager,
+                getClientCnxnSocket(),
+                canBeReadOnly);
         cnxn.start();
     }
 
