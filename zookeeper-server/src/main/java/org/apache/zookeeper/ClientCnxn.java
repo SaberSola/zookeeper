@@ -881,7 +881,13 @@ public class ClientCnxn {
             return clientCnxnSocket;
         }
 
+        /**
+         * 这个函数完成了一些watches和authData的传递以及允许更改SelectionKey，
+         * 允许clientCnxnSocket可读写，
+         * @throws IOException
+         */
         void primeConnection() throws IOException {
+
             LOG.info("Socket connection established to "
                      + clientCnxnSocket.getRemoteSocketAddress()
                      + ", initiating session");

@@ -147,6 +147,7 @@ public final class StaticHostProvider implements HostProvider {
 
     //返回一个zk服务器地址让客户端进行连接
     public InetSocketAddress next(long spinDelay) {
+
         currentIndex = ++currentIndex % serverAddresses.size();//随机
         if (currentIndex == lastIndex && spinDelay > 0) {
             try {
