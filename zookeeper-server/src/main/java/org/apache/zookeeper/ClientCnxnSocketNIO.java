@@ -62,6 +62,17 @@ public class ClientCnxnSocketNIO extends ClientCnxnSocket {
      * @throws InterruptedException
      * @throws IOException
      * 收到
+     *   主要分为读或者写两个case
+     *   读:
+     *     没有初始化就完成初始化
+     *     读取len再给incomingBuffer分配对应空间
+     *     读取对应的response
+     *   写:
+     *     找到可以发送的Packet
+     *     如果Packet的byteBuffer没有创建，那么就创建
+     *     byteBuffer写入socketChannel
+     *     把Packet从outgoingQueue中取出来，放到pendingQueue中
+     *     相关读写的处理
      */
     void doIO(List<Packet> pendingQueue, LinkedList<Packet> outgoingQueue, ClientCnxn cnxn)
       throws InterruptedException, IOException {
@@ -105,14 +116,13 @@ public class ClientCnxnSocketNIO extends ClientCnxnSocket {
         }
         //如果是写事件
         if (sockKey.isWritable()) {
-            synchronized(outgoingQueue) {
-                Packet p = findSendablePacket(outgoingQueue,
-                        cnxn.sendThread.clientTunneledAuthenticationInProgress());
+            synchronized(outgoingQueue) {//锁住队列
+                Packet p = findSendablePacket(outgoingQueue, cnxn.sendThread.clientTunneledAuthenticationInProgress());//找到可以发送的packet
 
                 if (p != null) {
                     updateLastSend();
                     // If we already started writing p, p.bb will already exist
-                    if (p.bb == null) {
+                    if (p.bb == null) {//packet内部还未生成bytebuffer
                         if ((p.requestHeader != null) &&
                                 (p.requestHeader.getType() != OpCode.ping) &&
                                 (p.requestHeader.getType() != OpCode.auth)) {
@@ -120,7 +130,7 @@ public class ClientCnxnSocketNIO extends ClientCnxnSocket {
                         }
                         p.createBB();
                     }
-                    sock.write(p.bb);
+                    sock.write(p.bb);//写入channel
                     if (!p.bb.hasRemaining()) {
                         sentCount++;
                         outgoingQueue.removeFirstOccurrence(p);
@@ -139,7 +149,7 @@ public class ClientCnxnSocketNIO extends ClientCnxnSocket {
                     // from within ZooKeeperSaslClient (if client is configured
                     // to attempt SASL authentication), or in either doIO() or
                     // in doTransport() if not.
-                    disableWrite();
+                    disableWrite();//如果没有要发的就禁止写
                 } else if (!initialized && p != null && !p.bb.hasRemaining()) {
                     // On initial connection, write the complete connect request
                     // packet, but then disable further writes until after
