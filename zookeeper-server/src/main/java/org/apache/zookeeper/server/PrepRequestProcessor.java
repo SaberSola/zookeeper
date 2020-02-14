@@ -116,10 +116,13 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements
     public static void setFailCreate(boolean b) {
         failCreate = b;
     }
+
+
     @Override
     public void run() {
         try {
             while (true) {
+                //从队列中获取请求
                 Request request = submittedRequests.take();
                 long traceMask = ZooTrace.CLIENT_REQUEST_TRACE_MASK;
                 if (request.type == OpCode.ping) {
@@ -131,6 +134,7 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements
                 if (Request.requestOfDeath == request) {
                     break;
                 }
+                //消费request
                 pRequest(request);
             }
         } catch (RequestProcessorException e) {
@@ -315,6 +319,7 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements
      * @param record
      */
     @SuppressWarnings("unchecked")
+    //处理会话请求
     protected void pRequest2Txn(int type, long zxid, Request request, Record record, boolean deserialize)
         throws KeeperException, IOException, RequestProcessorException
     {
@@ -322,7 +327,7 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements
                                     Time.currentWallTime(), type);
 
         switch (type) {
-            case OpCode.create:                
+            case OpCode.create:
                 zks.sessionTracker.checkSession(request.sessionId, request.getOwner());
                 CreateRequest createRequest = (CreateRequest)record;   
                 if(deserialize)
@@ -460,23 +465,22 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements
                 zks.sessionTracker.addSession(request.sessionId, to);
                 zks.setOwner(request.sessionId, request.getOwner());
                 break;
-            case OpCode.closeSession:
+            case OpCode.closeSession://会话关闭请求
                 // We don't want to do this check since the session expiration thread
                 // queues up this operation without being the session owner.
                 // this request is the last of the session so it should be ok
                 //zks.sessionTracker.checkSession(request.sessionId, request.getOwner());
-                HashSet<String> es = zks.getZKDatabase()
-                        .getEphemerals(request.sessionId);
-                synchronized (zks.outstandingChanges) {
+                HashSet<String> es = zks.getZKDatabase().getEphemerals(request.sessionId);//获取sessionId对应的临时节点的路径列表
+                synchronized (zks.outstandingChanges) {//遍历 zk serve的事务变更队列,这些事务处理尚未完成，没有应用到内存数据库中
                     for (ChangeRecord c : zks.outstandingChanges) {
-                        if (c.stat == null) {
+                        if (c.stat == null) {////如果当前变更记录没有状态信息(删除时才会出现，参照上面处理delete时的ChangeRecord构造参数)
                             // Doing a delete
-                            es.remove(c.path);
-                        } else if (c.stat.getEphemeralOwner() == request.sessionId) {
-                            es.add(c.path);
+                            es.remove(c.path);////避免多次删除
+                        } else if (c.stat.getEphemeralOwner() == request.sessionId) {//如果变更节点是临时的，且源于当前sessionId(只有创建和修改时，stat不会为null)
+                            es.add(c.path);////添加记录，最终要将添加或者修改的record再删除掉
                         }
                     }
-                    for (String path2Delete : es) {
+                    for (String path2Delete : es) {////添加节点变更事务,将es中所有路径的临时节点都删掉
                         addChangeRecord(new ChangeRecord(request.hdr.getZxid(),
                                 path2Delete, null, 0, null));
                     }
@@ -625,7 +629,8 @@ public class PrepRequestProcessor extends ZooKeeperCriticalThread implements
 
             //create/close session don't require request record
             case OpCode.createSession:
-            case OpCode.closeSession:
+            case OpCode.closeSession://处理会话关闭请求
+
                 pRequest2Txn(request.type, zks.getNextZxid(), request, null, true);
                 break;
  

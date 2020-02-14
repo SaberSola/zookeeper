@@ -350,6 +350,16 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
         }
     }
 
+    /**
+     * 1. 标记会话状态为已关闭
+     * 2. 发起会话关闭请求
+     * 3. 收集需要清理的临时节点
+     * 4. 添加节点删除事务变更
+     * 5. 删除临时节点
+     * 6. 移除会话
+     * 7. 关闭NIOServerCnxn
+     * @param session
+     */
     public void expire(Session session) {
         long sessionId = session.getSessionId();
         LOG.info("Expiring session 0x" + Long.toHexString(sessionId)
