@@ -84,7 +84,7 @@ public class FastLeaderElection implements Election {
      * a given peer has changed its vote, either because it has
      * joined leader election or because it learned of another
      * peer with higher zxid or same zxid and higher server id
-     * 包装投票的数据
+     * 包装接收到的数据
      */
     static public class Notification {
         /*
@@ -98,32 +98,32 @@ public class FastLeaderElection implements Election {
         /*
          * Proposed leader
          */
-        long leader;
+        long leader; //建议的leader
 
         /*
          * zxid of the proposed leader
          */
-        long zxid;
+        long zxid;//被推举的leader的事务Id
 
         /*
          * Epoch
          */
-        long electionEpoch;
+        long electionEpoch;//时钟
 
         /*
          * current state of sender
          */
-        QuorumPeer.ServerState state;
+        QuorumPeer.ServerState state; //被推举leader的状态
 
         /*
          * Address of sender
          */
-        long sid;
+        long sid; //被推举leader的sid
 
         /*
          * epoch of the proposed leader
          */
-        long peerEpoch;
+        long peerEpoch;//被推举leader
 
         @Override
         public String toString() {
@@ -187,32 +187,32 @@ public class FastLeaderElection implements Election {
         /*
          * Proposed leader in the case of notification
          */
-        long leader;
+        long leader;//推举的leaderId
 
         /*
          * id contains the tag for acks, and zxid for notifications
          */
-        long zxid;
+        long zxid;//推举leader的事务Id
 
         /*
          * Epoch
          */
-        long electionEpoch;
+        long electionEpoch;//逻辑时钟
 
         /*
          * Current state;
          */
-        QuorumPeer.ServerState state;
+        QuorumPeer.ServerState state;//选举的leader的状态
 
         /*
          * Address of recipient
          */
-        long sid;
+        long sid;//要发送到哪台server的sid
         
         /*
          * Leader epoch
          */
-        long peerEpoch;
+        long peerEpoch;//被推举leader的时钟
     }
 
     LinkedBlockingQueue<ToSend> sendqueue;       //发送队列

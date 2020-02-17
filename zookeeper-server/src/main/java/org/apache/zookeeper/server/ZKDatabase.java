@@ -496,5 +496,6 @@ public class ZKDatabase {
     public void close() throws IOException {
         this.snapLog.close();
     }
+
     
 }

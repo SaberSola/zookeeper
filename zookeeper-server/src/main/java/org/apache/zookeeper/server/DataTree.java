@@ -116,6 +116,29 @@ public class DataTree {
 
     private final ReferenceCountedACLCache aclCache = new ReferenceCountedACLCache();//记录一个acl列表与一个Long的映射关系
 
+    /**
+     * This is a pointer to the root of the DataTree. It is the source of truth,
+     * but we usually use the nodes hashmap to find nodes in the tree.
+     */
+    private DataNode root = new DataNode(null, new byte[0], -1L, new StatPersisted());// root
+
+    /**
+     * create a /zookeeper filesystem that is the proc filesystem of zookeeper
+     */
+    private DataNode procDataNode = new DataNode(root, new byte[0], -1L, new StatPersisted());// 创建"/zookeeper"
+
+    /**
+     * create a /zookeeper/quota node for maintaining quota properties for
+     * zookeeper
+     */
+    private DataNode quotaDataNode = new DataNode(procDataNode, new byte[0], -1L, new StatPersisted()); //创建 "/zookeeper/quota"
+
+    public volatile long lastProcessedZxid = 0; //上次处理的zxid
+
+    int scount;
+
+    public boolean initialized = false;//标记是否初始化
+
     @SuppressWarnings("unchecked")
     //根据sessionId获取创建的临时节点的列表
     public HashSet<String> getEphemerals(long sessionId) {
@@ -191,23 +214,6 @@ public class DataTree {
         }
         return result;
     }
-
-    /**
-     * This is a pointer to the root of the DataTree. It is the source of truth,
-     * but we usually use the nodes hashmap to find nodes in the tree.
-     */
-    private DataNode root = new DataNode(null, new byte[0], -1L, new StatPersisted());// root
-
-    /**
-     * create a /zookeeper filesystem that is the proc filesystem of zookeeper
-     */
-    private DataNode procDataNode = new DataNode(root, new byte[0], -1L, new StatPersisted());// 创建"/zookeeper"
-
-    /**
-     * create a /zookeeper/quota node for maintaining quota properties for
-     * zookeeper
-     */
-    private DataNode quotaDataNode = new DataNode(procDataNode, new byte[0], -1L, new StatPersisted()); //创建 "/zookeeper/quota"
 
     public DataTree() { //构造函数
         /* Rather than fight it, let root have an alias */
@@ -734,8 +740,6 @@ public class DataTree {
 
     }
 
-    public volatile long lastProcessedZxid = 0; ////上次处理的zxid
-
     /**
      * DataTree对每一条事务日志记录进行恢复, 注意循环的控制即整个日志文件的恢复在FileTxnSnapLog的restore的while循环中.
      * 下面以创建znode节点为例: 前面我们说过日志记录的内容Record应该是具体的实现类,
@@ -905,6 +909,14 @@ public class DataTree {
          *
          * Note, such failures on DT should be seen only during
          * restore.
+         */
+        /* 快照延迟。可能会发生以下情况，
+         * 即在父*序列化之后创建了父*的子* znode。
+         * 因此，在还原期间重放日志时，创建*可能会失败，
+         * 因为该节点已经*创建。
+         * 看到此故障后，我们应该增加父级znode的转换，
+         * 因为父级znode在其子级之前已被序列化。
+         * 注意，DT上的此类故障应仅在恢复期间看到。
          */
         if (header.getType() == OpCode.create &&
                 rc.err == Code.NODEEXISTS.intValue()) {
@@ -1107,10 +1119,6 @@ public class DataTree {
             serializeNode(oa, path);
         }
     }
-
-    int scount;
-
-    public boolean initialized = false;//标记是否初始化
 
     public void serialize(OutputArchive oa, String tag) throws IOException {
         scount = 0;

@@ -24,7 +24,7 @@ import java.util.Set;
  * All quorum validators have to implement a method called
  * containsQuorum, which verifies if a Set of server 
  * identifiers constitutes a quorum.
- *
+ * 集群验证码
  */
 
 public interface QuorumVerifier {

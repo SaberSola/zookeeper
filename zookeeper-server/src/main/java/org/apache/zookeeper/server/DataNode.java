@@ -73,7 +73,7 @@ public class DataNode implements Record {
 
     /**
      * create a DataNode with parent, data, acls and stat
-     * 
+     *
      * @param parent
      *            the parent of this DataNode
      * @param data
@@ -92,7 +92,7 @@ public class DataNode implements Record {
 
     /**
      * Method that inserts a child into the children set
-     * 
+     *
      * @param child
      *            to be inserted
      * @return true if this set did not already contain the specified element
@@ -107,7 +107,7 @@ public class DataNode implements Record {
 
     /**
      * Method that removes a child from the children set
-     * 
+     *
      * @param child
      * @return true if this set contained the specified element
      */
@@ -120,7 +120,7 @@ public class DataNode implements Record {
 
     /**
      * convenience method for setting the children for this datanode
-     * 
+     *
      * @param children
      */
     public synchronized void setChildren(HashSet<String> children) {
@@ -129,7 +129,7 @@ public class DataNode implements Record {
 
     /**
      * convenience methods to get the children
-     * 
+     *
      * @return the children of this datanode
      */
     public synchronized Set<String> getChildren() {

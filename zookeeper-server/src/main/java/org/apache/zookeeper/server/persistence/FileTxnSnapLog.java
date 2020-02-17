@@ -62,8 +62,9 @@ public class FileTxnSnapLog {
     private SnapShot snapLog;
     //版本
     public final static int VERSION = 2;
+
     public final static String version = "version-";
-    
+
     private static final Logger LOG = LoggerFactory.getLogger(FileTxnSnapLog.class);
     
     /**

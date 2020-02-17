@@ -156,12 +156,15 @@ public class DataTreeTest extends ZKTestCase {
 
         //Create a DataTree with quota nodes so PathTrie get updated
         DataTree dserTree = new DataTree();
-        
+        dserTree.createNode("/bug", new byte[20], null, -1, 1, 1, 1);
+        dserTree.createNode("/bug/zl", new byte[20], null, -1, 1, 1, 1);
+        dserTree.createNode("/bug/zl/test3", new byte[20], null, -1, 1, 1, 1);
+        dserTree.createNode("/bug/zl/test1", new byte[20], null, -1, 1, 1, 1);
         dserTree.createNode("/bug/zl/test", new byte[20], null, -1, 1, 1, 1);
         dserTree.createNode(Quotas.quotaZookeeper+"/bug", null, null, -1, 1, 1, 1);
         dserTree.createNode(Quotas.quotaPath("/bug"), new byte[20], null, -1, 1, 1, 1);
         dserTree.createNode(Quotas.statPath("/bug"), new byte[20], null, -1, 1, 1, 1);
-        
+        dserTree.deleteNode("/bug/zl",1);
         //deserialize a DataTree; this should clear the old /bug nodes and pathTrie
         DataTree tree = new DataTree();
 
