@@ -73,7 +73,9 @@ import org.slf4j.LoggerFactory;
  * This class implements a simple standalone ZooKeeperServer. It sets up the
  * following chain of RequestProcessors to process requests:
  * PrepRequestProcessor -> SyncRequestProcessor -> FinalRequestProcessor
+ * leader和follower的
  */
+
 public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
     protected static final Logger LOG;
     
@@ -100,19 +102,19 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
         }
     }
 
-    public static final int DEFAULT_TICK_TIME = 3000;
-    protected int tickTime = DEFAULT_TICK_TIME;
+    public static final int DEFAULT_TICK_TIME = 3000;//默认最短周期
+    protected int tickTime = DEFAULT_TICK_TIME;      //一个ticket的周期
     /** value of -1 indicates unset, use default */
-    protected int minSessionTimeout = -1;
+    protected int minSessionTimeout = -1;            // 默认最短会话超时时间
     /** value of -1 indicates unset, use default */
-    protected int maxSessionTimeout = -1;
-    protected SessionTracker sessionTracker;
-    private FileTxnSnapLog txnLogFactory = null;
-    private ZKDatabase zkDb;
-    private final AtomicLong hzxid = new AtomicLong(0);
+    protected int maxSessionTimeout = -1;            // 默认最短会话超时时间
+    protected SessionTracker sessionTracker;         // 会话跟踪器
+    private FileTxnSnapLog txnLogFactory = null;     //log
+    private ZKDatabase zkDb;                         //内存数据库
+    private final AtomicLong hzxid = new AtomicLong(0);//事务Id
     public final static Exception ok = new Exception("No prob");
-    protected RequestProcessor firstProcessor;
-    protected volatile State state = State.INITIAL;
+    protected RequestProcessor firstProcessor;        //第一个处理器
+    protected volatile State state = State.INITIAL;   //初始状态
 
     protected enum State {
         INITIAL, RUNNING, SHUTDOWN, ERROR;
@@ -122,19 +124,18 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
      * This is the secret that we use to generate passwords, for the moment it
      * is more of a sanity check.
      */
-    static final private long superSecret = 0XB3415C00L;
+    static final private long superSecret = 0XB3415C00L;//密码相关
 
-    private final AtomicInteger requestsInProcess = new AtomicInteger(0);
-    final List<ChangeRecord> outstandingChanges = new ArrayList<ChangeRecord>();
+    private final AtomicInteger requestsInProcess = new AtomicInteger(0); //正在处理的请求个数
+    final List<ChangeRecord> outstandingChanges = new ArrayList<ChangeRecord>();      //变更列表
     // this data structure must be accessed under the outstandingChanges lock
-    final HashMap<String, ChangeRecord> outstandingChangesForPath =
-        new HashMap<String, ChangeRecord>();
+    final HashMap<String, ChangeRecord> outstandingChangesForPath = new HashMap<String, ChangeRecord>(); //path --> 变更记录的
     
-    private ServerCnxnFactory serverCnxnFactory;
+    private ServerCnxnFactory serverCnxnFactory;    //连接工厂
 
-    private final ServerStats serverStats;
-    private final ZooKeeperServerListener listener;
-    private ZooKeeperServerShutdownHandler zkShutdownHandler;
+    private final ServerStats serverStats; //服务器统计器
+    private final ZooKeeperServerListener listener;  //监听，处理服务器stop状态
+    private ZooKeeperServerShutdownHandler zkShutdownHandler; //server的关闭处理器
 
     void removeCnxn(ServerCnxn cnxn) {
         zkDb.removeCnxn(cnxn);
@@ -257,6 +258,8 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
     
     /**
      *  Restore sessions and data
+     *  恢复session和数据，单机版启动或者集群版leader选举之后调用lead方法时，会调用该方法。
+     *   主要完成设置zxid以及把无效的session给kill掉的工作
      */
     public void loadData() throws IOException, InterruptedException {
         /*
@@ -278,7 +281,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
          * See ZOOKEEPER-1642 for more detail.
          */
         if(zkDb.isInitialized()){
-            setZxid(zkDb.getDataTreeLastProcessedZxid());
+            setZxid(zkDb.getDataTreeLastProcessedZxid());//设置当前server的zxid
         }
         else {
             setZxid(zkDb.loadDataBase());
@@ -286,12 +289,12 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
         
         // Clean up dead sessions
         LinkedList<Long> deadSessions = new LinkedList<Long>();
-        for (Long session : zkDb.getSessions()) {
-            if (zkDb.getSessionWithTimeOuts().get(session) == null) {
+        for (Long session : zkDb.getSessions()) {//过去临时会话
+            if (zkDb.getSessionWithTimeOuts().get(session) == null) {//如果会话已经被tracker超时检测给清除掉了,应该是已经处理检测过期，但是异步发送请求还未完成的情况
                 deadSessions.add(session);
             }
         }
-        zkDb.setDataTreeInit(true);
+        zkDb.setDataTreeInit(true);//dataTree init 结束
         for (long session : deadSessions) {
             // XXX: Is lastProcessedZxid really the best thing to use?
             killSession(session, zkDb.getDataTreeLastProcessedZxid());
@@ -338,6 +341,11 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
         close(sessionId);
     }
 
+    /**
+     * 清除db中临时会话记录，会话跟踪器也清除记录
+     * @param sessionId
+     * @param zxid
+     */
     protected void killSession(long sessionId, long zxid) {
         zkDb.killSession(sessionId, zxid);
         if (LOG.isTraceEnabled()) {
@@ -414,24 +422,25 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
             zkDb = new ZKDatabase(this.txnLogFactory);
         }  
         if (!zkDb.isInitialized()) {
-            loadData();
+            loadData();//加载数据
         }
     }
-    
+
+    //加载完数据之后会启动
     public synchronized void startup() {
         if (sessionTracker == null) {
-            createSessionTracker();
+            createSessionTracker();//创建会话跟踪器
         }
-        startSessionTracker();
-        setupRequestProcessors();
+        startSessionTracker(); //启动会话跟踪器
+        setupRequestProcessors();////初始化请求处理链路
 
-        registerJMX();
+        registerJMX();//注册jmx
 
-        setState(State.RUNNING);
+        setState(State.RUNNING);//设置状态
         notifyAll();
     }
 
-    protected void setupRequestProcessors() {
+    protected void setupRequestProcessors() {//设置请求链路处理器
         RequestProcessor finalProcessor = new FinalRequestProcessor(this);
         RequestProcessor syncProcessor = new SyncRequestProcessor(this,
                 finalProcessor);
@@ -591,9 +600,9 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
             this.acl = acl;
         }
 
-        long zxid;
+        long zxid; //zxid
 
-        String path;
+        String path;//路径
 
         StatPersisted stat; /* Make sure to create a new object when changing */
 
@@ -602,7 +611,7 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
         List<ACL> acl; /* Make sure to create a new object when changing */
 
         @SuppressWarnings("unchecked")
-        ChangeRecord duplicate(long zxid) {
+        ChangeRecord duplicate(long zxid) {//复制
             StatPersisted stat = new StatPersisted();
             if (this.stat != null) {
                 DataTree.copyStatPersisted(this.stat, stat);
@@ -656,20 +665,27 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
         finishSessionInit(cnxn, rc);
     }
 
+    // 会话重连
     public void reopenSession(ServerCnxn cnxn, long sessionId, byte[] passwd,
             int sessionTimeout) throws IOException {
-        if (!checkPasswd(sessionId, passwd)) {
-            finishSessionInit(cnxn, false);
+        if (!checkPasswd(sessionId, passwd)) {//检验密码
+            finishSessionInit(cnxn, false);//密码校验不通过,传入false
         } else {
-            revalidateSession(cnxn, sessionId, sessionTimeout);
+            revalidateSession(cnxn, sessionId, sessionTimeout);////如果密码正确，判断会话跟踪器的记录
         }
     }
 
+    /**
+     * 完成会话初始化，根据参数valid代表认证通过与否，
+     * 用来判断server是接收连接请求，还是发出closeConn的请求,不展开，重要部分如下
+     * @param cnxn
+     * @param valid
+     */
     public void finishSessionInit(ServerCnxn cnxn, boolean valid) {
         // register with JMX
         try {
             if (valid) {
-                serverCnxnFactory.registerConnection(cnxn);
+                serverCnxnFactory.registerConnection(cnxn);//注册jmx
             }
         } catch (Exception e) {
                 LOG.warn("Failed to register with JMX", e);
@@ -892,11 +908,13 @@ public class ZooKeeperServer implements SessionExpirer, ServerStats.Provider {
     public int getNumAliveConnections() {
         return serverCnxnFactory.getNumAliveConnections();
     }
-    
+
+    //处理连接请求
     public void processConnectRequest(ServerCnxn cnxn, ByteBuffer incomingBuffer) throws IOException {
         BinaryInputArchive bia = BinaryInputArchive.getArchive(new ByteBufferInputStream(incomingBuffer));
         ConnectRequest connReq = new ConnectRequest();
         connReq.deserialize(bia, "connect");
+        //
         if (LOG.isDebugEnabled()) {
             LOG.debug("Session establishment request from client "
                     + cnxn.getRemoteSocketAddress()

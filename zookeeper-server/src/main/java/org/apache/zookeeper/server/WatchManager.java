@@ -97,7 +97,8 @@ public class WatchManager {
     public Set<Watcher> triggerWatch(String path, EventType type, Set<Watcher> supress) {
         WatchedEvent e = new WatchedEvent(type,
                 KeeperState.SyncConnected, path); //封装事件请求
-        HashSet<Watcher> watchers;
+        HashSet<Watcher>
+                watchers;
         synchronized (this) {
             watchers = watchTable.remove(path);//触发一次就会remove
             if (watchers == null || watchers.isEmpty()) {

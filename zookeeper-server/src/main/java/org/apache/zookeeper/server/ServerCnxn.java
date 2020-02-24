@@ -111,6 +111,8 @@ public abstract class ServerCnxn implements Stats, Watcher {
 
     protected ZooKeeperSaslServer zooKeeperSaslServer = null;
 
+
+    // 请求关闭异常类
     protected static class CloseRequestException extends IOException {
         private static final long serialVersionUID = -7854505709816442681L;
 
@@ -119,6 +121,7 @@ public abstract class ServerCnxn implements Stats, Watcher {
         }
     }
 
+    //eof异常
     protected static class EndOfStreamException extends IOException {
         private static final long serialVersionUID = -8255690282104294178L;
 
@@ -365,21 +368,32 @@ public abstract class ServerCnxn implements Stats, Watcher {
     }
 
     protected abstract ServerStats serverStats();
-    
-    protected final Date established = new Date();
 
+    //连接创建时间
+    protected final Date established = new Date();
+    //接收packet的数量
     protected final AtomicLong packetsReceived = new AtomicLong();
+    //发送packet的数量
     protected final AtomicLong packetsSent = new AtomicLong();
 
+    //做小延迟
     protected long minLatency;
+    //最大延迟
     protected long maxLatency;
+    //最后操作类型
     protected String lastOp;
+    //最后的cxid
     protected long lastCxid;
+    //左后的zxid
     protected long lastZxid;
+    //最后的响应时间
     protected long lastResponseTime;
+    //最后的延时
     protected long lastLatency;
 
+    //苏红来那个
     protected long count;
+    //总的延时
     protected long totalLatency;
 
     public synchronized void resetStats() {
