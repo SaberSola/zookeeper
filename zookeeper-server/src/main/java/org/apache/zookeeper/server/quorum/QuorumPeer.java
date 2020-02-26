@@ -994,6 +994,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                         }
                     }
                     break;
+                    //选举结束后各个角色已经清楚
                 case OBSERVING:
                     try {
                         LOG.info("OBSERVING");
@@ -1024,6 +1025,7 @@ public class QuorumPeer extends ZooKeeperThread implements QuorumStats.Provider 
                     LOG.info("LEADING");
                     try {
                         setLeader(makeLeader(logFactory));//设置自己为Leader
+                        //Leader服务器启动Follower接收器LearnerCnxAcceptor(leader端)
                         leader.lead();
                         setLeader(null);
                     } catch (Exception e) {

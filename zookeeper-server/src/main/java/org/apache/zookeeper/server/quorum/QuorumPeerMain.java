@@ -61,6 +61,12 @@ import org.apache.zookeeper.server.quorum.QuorumPeerConfig.ConfigException;
  * In addition to the config file. There is a file in the data directory called
  * "myid" that contains the server id as an ASCII decimal value.
  *
+ * 1. 统一由QuorumPeerMain作为启动类。
+ * 2. 解析配置文件zoo.cfg。
+ * 3. 创建并启动历史文件清理器DatadirCleanupFactory。
+ * 4. 判断当前是集群模式还是单机模式的启动。
+ *     在集群模式中，在zoo.cfg文件中配置了多个服务器地址，可以选择集群启动。
+ *
  */
 @InterfaceAudience.Public
 public class QuorumPeerMain {

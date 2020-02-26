@@ -312,7 +312,13 @@ public class Leader {
     ConcurrentLinkedQueue<Proposal> toBeApplied = new ConcurrentLinkedQueue<Proposal>();
 
     Proposal newLeaderProposal = new Proposal();
-    
+
+
+    /**
+     * Leader接收到来自其他机器连接创建请求后，会创建一个LearnerHandler实例，
+     * 每个LearnerHandler实例都对应一个Leader与Learner服务器之间的连接，
+     * 其负责Leader和Learner服务器之间几乎所有的消息通信和数据同步。
+     */
     class LearnerCnxAcceptor extends ZooKeeperThread{
         private volatile boolean stop = false;
 
@@ -391,8 +397,8 @@ public class Leader {
 
             // Start thread that waits for connection requests from 
             // new followers.
-            cnxAcceptor = new LearnerCnxAcceptor();
-            cnxAcceptor.start();
+            cnxAcceptor = new LearnerCnxAcceptor();//等到learner的链接
+            cnxAcceptor.start();//启动
             
             readyToStart = true;
             long epoch = getEpochToPropose(self.getId(), self.getAcceptedEpoch());

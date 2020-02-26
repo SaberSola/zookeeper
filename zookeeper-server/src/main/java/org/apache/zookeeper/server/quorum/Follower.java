@@ -57,6 +57,11 @@ public class Follower extends Learner{
      * the main method called by the follower to follow the leader
      *
      * @throws InterruptedException
+     *
+     *Learner完成和Leader的连接后，
+     * 会向Leader进行注册，即将Learner服务器的基本信息（LearnerInfo），
+     * 包括SID和ZXID，发送给Leader服务器
+     *
      */
     void followLeader() throws InterruptedException {
         self.end_fle = Time.currentElapsedTime();
