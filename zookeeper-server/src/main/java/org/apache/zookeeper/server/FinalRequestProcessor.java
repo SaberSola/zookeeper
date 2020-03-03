@@ -76,6 +76,8 @@ import org.apache.zookeeper.OpResult.ErrorResult;
  *
  * This RequestProcessor counts on ZooKeeperServer to populate the
  * outstandingRequests member of ZooKeeperServer.
+ * 用来进行客户端请求返回之前的操作，包括创建客户端请求的响应，针对事务请求
+ * ，该处理还会负责将事务应用到内存数据库中去
  */
 public class FinalRequestProcessor implements RequestProcessor {
     private static final Logger LOG = LoggerFactory.getLogger(FinalRequestProcessor.class);

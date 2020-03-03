@@ -28,6 +28,11 @@ import org.apache.zookeeper.ZooDefs.OpCode;
 import org.apache.zookeeper.server.Request;
 import org.apache.zookeeper.server.RequestProcessor;
 
+/**
+ * SendAckRequestProcessor
+ * Follow端的处理器
+ * 其承担了事务日志记录反馈的角色，在完成事务日志记录后，会向Leader服务器发送ACK消息以表明自身完成了事务日志的记录工作
+ */
 public class SendAckRequestProcessor implements RequestProcessor, Flushable {
     private static final Logger LOG = LoggerFactory.getLogger(SendAckRequestProcessor.class);
     
@@ -38,11 +43,11 @@ public class SendAckRequestProcessor implements RequestProcessor, Flushable {
     }
 
     public void processRequest(Request si) {
-        if(si.type != OpCode.sync){
+        if(si.type != OpCode.sync){//不是sysn的请求就处理
             QuorumPacket qp = new QuorumPacket(Leader.ACK, si.hdr.getZxid(), null,
-                null);
+                null); //生成ack包
             try {
-                learner.writePacket(qp, false);
+                learner.writePacket(qp, false); //发送给leader
             } catch (IOException e) {
                 LOG.warn("Closing connection to leader, exception during packet send", e);
                 try {
@@ -59,7 +64,7 @@ public class SendAckRequestProcessor implements RequestProcessor, Flushable {
     
     public void flush() throws IOException {
         try {
-            learner.writePacket(null, true);
+            learner.writePacket(null, true); //发送一个空packet
         } catch(IOException e) {
             LOG.warn("Closing connection to leader, exception during packet send", e);
             try {

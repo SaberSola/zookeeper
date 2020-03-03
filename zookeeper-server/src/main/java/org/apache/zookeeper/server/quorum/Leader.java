@@ -609,7 +609,7 @@ public class Leader {
      * @param followerAddr
      */
     synchronized public void processAck(long sid, long zxid, SocketAddress followerAddr) {
-        if (LOG.isTraceEnabled()) {
+        if (LOG.isTraceEnabled()) { //log相关
             LOG.trace("Ack zxid: 0x{}", Long.toHexString(zxid));
             for (Proposal p : outstandingProposals.values()) {
                 long packetZxid = p.packet.getZxid();
@@ -649,36 +649,41 @@ public class Leader {
             return;
         }
         
-        p.ackSet.add(sid);
+        p.ackSet.add(sid);//对应提议的ack集合添加sid记录
         if (LOG.isDebugEnabled()) {
             LOG.debug("Count for zxid: 0x{} is {}",
                     Long.toHexString(zxid), p.ackSet.size());
         }
-        if (self.getQuorumVerifier().containsQuorum(p.ackSet)){             
+        if (self.getQuorumVerifier().containsQuorum(p.ackSet)){//过半回复的ack
             if (zxid != lastCommitted+1) {
                 LOG.warn("Commiting zxid 0x{} from {} not first!",
                         Long.toHexString(zxid), followerAddr);
                 LOG.warn("First is 0x{}", Long.toHexString(lastCommitted + 1));
             }
-            outstandingProposals.remove(zxid);
+            outstandingProposals.remove(zxid);//该proposal已经处理完了
             if (p.request != null) {
-                toBeApplied.add(p);
+                toBeApplied.add(p);//即将应用的队列添加提议
             }
 
             if (p.request == null) {
                 LOG.warn("Going to commmit null request for proposal: {}", p);
             }
-            commit(zxid);
-            inform(p);
-            zk.commitProcessor.commit(p.request);
+            commit(zxid);//提交发给所有参与者
+            inform(p);//告诉所有的观察者
+            zk.commitProcessor.commit(p.request);//leader自己也提交
             if(pendingSyncs.containsKey(zxid)){
                 for(LearnerSyncRequest r: pendingSyncs.remove(zxid)) {
-                    sendSync(r);
+                    sendSync(r);//发送同步请求给LearnerSyncRequest记录的server
                 }
             }
         }
     }
 
+    /**
+     * 该处理器有一个toBeApplied队列，用来存储那些已经被CommitProcessor处理过的可被提交的Proposal。
+     * 其会将这些请求交付给FinalRequestProcessor处理器处理，待其处理完后，再将其从toBeApplied队列中移除
+     *
+     */
     static class ToBeAppliedRequestProcessor implements RequestProcessor {
         private RequestProcessor next;
 
@@ -762,7 +767,7 @@ public class Leader {
 
     /**
      * Create a commit packet and send it to all the members of the quorum
-     * 
+     * 发送给所有的参与者
      * @param zxid
      */
     public void commit(long zxid) {
@@ -809,8 +814,9 @@ public class Leader {
      * 
      * @param request
      * @return the proposal that is queued to send to all the members
+     *
      */
-    public Proposal propose(Request request) throws XidRolloverException {
+    public Proposal propose(Request request) throws XidRolloverException {//根据reques的提议发送给所有的参与者
         /**
          * Address the rollover issue. All lower 32bits set indicate a new leader
          * election. Force a re-election instead. See ZOOKEEPER-1277
@@ -821,11 +827,12 @@ public class Leader {
             shutdown(msg);
             throw new XidRolloverException(msg);
         }
+        //
         byte[] data = SerializeUtils.serializeRequest(request);
         proposalStats.setLastProposalSize(data.length);
-        QuorumPacket pp = new QuorumPacket(Leader.PROPOSAL, request.zxid, data, null);
+        QuorumPacket pp = new QuorumPacket(Leader.PROPOSAL, request.zxid, data, null);//生成提议packte
         
-        Proposal p = new Proposal();
+        Proposal p = new Proposal(); //new 一个提议
         p.packet = pp;
         p.request = request;
         synchronized (this) {
@@ -833,9 +840,9 @@ public class Leader {
                 LOG.debug("Proposing:: " + request);
             }
 
-            lastProposed = p.packet.getZxid();
-            outstandingProposals.put(lastProposed, p);
-            sendPacket(pp);
+            lastProposed = p.packet.getZxid();///更新最近一次提议的zxid
+            outstandingProposals.put(lastProposed, p);//添加map
+            sendPacket(pp); //提议发给所有参与者
         }
         return p;
     }
@@ -844,24 +851,25 @@ public class Leader {
      * Process sync requests
      * 
      * @param r the request
+     *
+     * 处理同步请求
      */
-    
     synchronized public void processSync(LearnerSyncRequest r){
-        if(outstandingProposals.isEmpty()){
-            sendSync(r);
+        if(outstandingProposals.isEmpty()){//没有正在处理的提议
+            sendSync(r); //发送同步请求给LearnerSyncRequest记录的server
         } else {
-            List<LearnerSyncRequest> l = pendingSyncs.get(lastProposed);
+            List<LearnerSyncRequest> l = pendingSyncs.get(lastProposed); ////把当时最新的lastProposed记录下来
             if (l == null) {
                 l = new ArrayList<LearnerSyncRequest>();
             }
-            l.add(r);
+            l.add(r); //lastProposed对应的记录添加进当前的request,这个列表的同步都是到lastProposed这个位置
             pendingSyncs.put(lastProposed, l);
         }
     }
         
     /**
      * Sends a sync message to the appropriate server
-     * 
+     * 发送Sync请求给合适的server(LearnerSyncRequest记录的)
      * @param f
      * @param r
      */
@@ -874,42 +882,43 @@ public class Leader {
     /**
      * lets the leader know that a follower is capable of following and is done
      * syncing
-     * 
+     * 就是learner同步的时候，同步方式是和leader的commitLog相关的，在此期间，记录在内存中的提议，以及即将生效的提议也要告诉给learner
      * @param handler handler of the follower
      * @return last proposed zxid
+     *
      */
     synchronized public long startForwarding(LearnerHandler handler,
-            long lastSeenZxid) {
+            long lastSeenZxid) { ////让leader知道Follower在进行同步,另外看zk当前有没有新的提议,或者同步的信息发送过去的
         // Queue up any outstanding requests enabling the receipt of
         // new requests
-        if (lastProposed > lastSeenZxid) {
+        if (lastProposed > lastSeenZxid) {//自己的zxid比发送给learner的zxid大
             for (Proposal p : toBeApplied) {
-                if (p.packet.getZxid() <= lastSeenZxid) {
+                if (p.packet.getZxid() <= lastSeenZxid) {//即将生效的zxid，对应learner已经有记录了
                     continue;
                 }
-                handler.queuePacket(p.packet);
+                handler.queuePacket(p.packet);//发送至队列
                 // Since the proposal has been committed we need to send the
                 // commit message also
                 QuorumPacket qp = new QuorumPacket(Leader.COMMIT, p.packet
-                        .getZxid(), null, null);
-                handler.queuePacket(qp);
+                        .getZxid(), null, null); //添加commit
+                handler.queuePacket(qp); //发送至
             }
             // Only participant need to get outstanding proposals
-            if (handler.getLearnerType() == LearnerType.PARTICIPANT) {
+            if (handler.getLearnerType() == LearnerType.PARTICIPANT) {//如果是参与者，顺便把提议也发送过去
                 List<Long>zxids = new ArrayList<Long>(outstandingProposals.keySet());
                 Collections.sort(zxids);
                 for (Long zxid: zxids) {
                     if (zxid <= lastSeenZxid) {
                         continue;
                     }
-                    handler.queuePacket(outstandingProposals.get(zxid).packet);
+                    handler.queuePacket(outstandingProposals.get(zxid).packet);//发送至队列
                 }
             }
         }
-        if (handler.getLearnerType() == LearnerType.PARTICIPANT) {
-            addForwardingFollower(handler);
+        if (handler.getLearnerType() == LearnerType.PARTICIPANT) {//如果是参与者
+            addForwardingFollower(handler);//添加至参与者集合
         } else {
-            addObserverLearnerHandler(handler);
+            addObserverLearnerHandler(handler);//观察者 添加观察者集合
         }
                 
         return lastProposed;

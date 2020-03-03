@@ -43,43 +43,47 @@ import org.slf4j.LoggerFactory;
  *             It never send ack back to the leader, so the nextProcessor will
  *             be null. This change the semantic of txnlog on the observer
  *             since it only contains committed txns.
+ * 事务日志记录处理器。用来将事务请求记录到事务日志文件中，同时会触发Zookeeper进行数据快照
+ *
+ *
+ *
  */
 public class SyncRequestProcessor extends ZooKeeperCriticalThread implements RequestProcessor {
     private static final Logger LOG = LoggerFactory.getLogger(SyncRequestProcessor.class);
-    private final ZooKeeperServer zks;
-    private final LinkedBlockingQueue<Request> queuedRequests =
-        new LinkedBlockingQueue<Request>();
-    private final RequestProcessor nextProcessor;
+    private final ZooKeeperServer zks;//server
+    private final LinkedBlockingQueue<Request> queuedRequests = new LinkedBlockingQueue<Request>(); //请求队列
+    private final RequestProcessor nextProcessor;// 下段时间请求气
 
-    private Thread snapInProcess = null;
-    volatile private boolean running;
+    private Thread snapInProcess = null;//处理快照线程
+    volatile private boolean running;   //线程是否运行
 
     /**
      * Transactions that have been written and are waiting to be flushed to
      * disk. Basically this is the list of SyncItems whose callbacks will be
      * invoked after flush returns successfully.
      */
-    private final LinkedList<Request> toFlush = new LinkedList<Request>();
+    private final LinkedList<Request> toFlush = new LinkedList<Request>();//等待数据被刷到磁盘的请求队列
     private final Random r = new Random(System.nanoTime());
     /**
      * The number of log entries to log before starting a snapshot
      */
-    private static int snapCount = ZooKeeperServer.getSnapCount();
+    private static int snapCount = ZooKeeperServer.getSnapCount();//快照的个数
     
     /**
      * The number of log entries before rolling the log, number
      * is chosen randomly
      */
-    private static int randRoll;
+    private static int randRoll; // 一个随机数，用来帮助判断何时让事务日志从当前“滚”到下一个
 
-    private final Request requestOfDeath = Request.requestOfDeath;
+    private final Request requestOfDeath = Request.requestOfDeath; // 结束请求标识
 
+    //构造方法
     public SyncRequestProcessor(ZooKeeperServer zks,
             RequestProcessor nextProcessor) {
         super("SyncThread:" + zks.getServerId(), zks
                 .getZooKeeperServerListener());
         this.zks = zks;
-        this.nextProcessor = nextProcessor;
+        this.nextProcessor = nextProcessor; //下一个处理器
         running = true;
     }
     
@@ -114,43 +118,43 @@ public class SyncRequestProcessor extends ZooKeeperCriticalThread implements Req
     }
 
     @Override
-    public void run() {
+    public void run() {//核心方法，消费请求队列,批处理进行快照以及刷到事务日志
         try {
             int logCount = 0;
 
             // we do this in an attempt to ensure that not all of the servers
             // in the ensemble take a snapshot at the same time
-            setRandRoll(r.nextInt(snapCount/2));
+            setRandRoll(r.nextInt(snapCount/2)); //randRoll是一个 snapCount/2以内的随机数, 避免所有机器同时进行snapshot
             while (true) {
                 Request si = null;
-                if (toFlush.isEmpty()) {
+                if (toFlush.isEmpty()) {//没有要刷到磁盘的请求
                     si = queuedRequests.take();
-                } else {
+                } else {//有需要刷到磁盘的请求
                     si = queuedRequests.poll();
-                    if (si == null) {
-                        flush(toFlush);
-                        continue;
+                    if (si == null) {//如果请求队列的当前请求为空
+                        flush(toFlush);//刷到磁盘
+                        continue; //继续下一个循环
                     }
                 }
-                if (si == requestOfDeath) {
+                if (si == requestOfDeath) {//线程退出请求
                     break;
                 }
-                if (si != null) {
+                if (si != null) {//队列去除不为null
                     // track the number of records written to the log
-                    if (zks.getZKDatabase().append(si)) {
+                    if (zks.getZKDatabase().append(si)) {//请求添加至日志请求
                         logCount++;
-                        if (logCount > (snapCount / 2 + randRoll)) {
-                            setRandRoll(r.nextInt(snapCount/2));
+                        if (logCount > (snapCount / 2 + randRoll)) { //logcount 达到一定的数量
+                            setRandRoll(r.nextInt(snapCount/2));//下一次的随机数重新选
                             // roll the log
-                            zks.getZKDatabase().rollLog();
+                            zks.getZKDatabase().rollLog();//事务日志滚动到另外一个文件
                             // take a snapshot
-                            if (snapInProcess != null && snapInProcess.isAlive()) {
+                            if (snapInProcess != null && snapInProcess.isAlive()) {//正在进行快照
                                 LOG.warn("Too busy to snap, skipping");
                             } else {
                                 snapInProcess = new ZooKeeperThread("Snapshot Thread") {
                                         public void run() {
                                             try {
-                                                zks.takeSnapshot();
+                                                zks.takeSnapshot();//进行快照,将sessions和datatree保存至snapshot文件
                                             } catch(Exception e) {
                                                 LOG.warn("Unexpected exception", e);
                                             }
@@ -160,21 +164,21 @@ public class SyncRequestProcessor extends ZooKeeperCriticalThread implements Req
                             }
                             logCount = 0;
                         }
-                    } else if (toFlush.isEmpty()) {
+                    } else if (toFlush.isEmpty()) {////刷到磁盘的队列为空
                         // optimization for read heavy workloads
                         // iff this is a read, and there are no pending
                         // flushes (writes), then just pass this to the next
                         // processor
                         if (nextProcessor != null) {
-                            nextProcessor.processRequest(si);
+                            nextProcessor.processRequest(si);//下个处理器处理
                             if (nextProcessor instanceof Flushable) {
-                                ((Flushable)nextProcessor).flush();
+                                ((Flushable)nextProcessor).flush();//下个处理器可以刷就刷
                             }
                         }
                         continue;
                     }
-                    toFlush.add(si);
-                    if (toFlush.size() > 1000) {
+                    toFlush.add(si);//刷的队列添加记录
+                    if (toFlush.size() > 1000) { //查过1000条就开始刷盘
                         flush(toFlush);
                     }
                 }
@@ -186,21 +190,27 @@ public class SyncRequestProcessor extends ZooKeeperCriticalThread implements Req
         LOG.info("SyncRequestProcessor exited!");
     }
 
+    /**
+     * 批处理的思想，把事务日志刷到磁盘，让下一个处理器处理
+     * @param toFlush
+     * @throws IOException
+     * @throws RequestProcessorException
+     */
     private void flush(LinkedList<Request> toFlush)
         throws IOException, RequestProcessorException
     {
-        if (toFlush.isEmpty())
+        if (toFlush.isEmpty()) //队列为空 return
             return;
 
-        zks.getZKDatabase().commit();
+        zks.getZKDatabase().commit(); //刷新到磁盘
         while (!toFlush.isEmpty()) {
             Request i = toFlush.remove();
             if (nextProcessor != null) {
-                nextProcessor.processRequest(i);
+                nextProcessor.processRequest(i); //下一个处理器处理
             }
         }
         if (nextProcessor != null && nextProcessor instanceof Flushable) {
-            ((Flushable)nextProcessor).flush();
+            ((Flushable)nextProcessor).flush(); //下个处理器也可以刷，就刷
         }
     }
 
@@ -228,7 +238,7 @@ public class SyncRequestProcessor extends ZooKeeperCriticalThread implements Req
 
     public void processRequest(Request request) {
         // request.addRQRec(">sync");
-        queuedRequests.add(request);
+        queuedRequests.add(request); //request请求加入对垒
     }
 
 }

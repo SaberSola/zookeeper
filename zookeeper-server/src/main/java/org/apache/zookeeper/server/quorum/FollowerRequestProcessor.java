@@ -32,6 +32,8 @@ import org.apache.zookeeper.server.ZooTrace;
 /**
  * This RequestProcessor forwards any requests that modify the state of the
  * system to the Leader.
+ * 其用作识别当前请求是否是事务请求，若是，
+ * 那么Follower就会将该请求转发给Leader服务器，Leader服务器是在接收到这个事务请求后，就会将其提交到请求处理链，按照正常事务请求进行处理。
  */
 public class FollowerRequestProcessor extends ZooKeeperCriticalThread implements
         RequestProcessor {

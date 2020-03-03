@@ -34,6 +34,10 @@ import org.apache.zookeeper.server.ZooKeeperServerListener;
  * locally submitted requests. The trick is that locally submitted requests that
  * change the state of the system will come back as incoming committed requests,
  * so we need to match them up.
+ * 事务提交处理器。对于非事务请求，
+ * 该处理器会直接将其交付给下一级处理器处理；对于事务请求，其会等待集群内针对Proposal的投票直到该Proposal可被提交，
+ * 利用CommitProcessor，每个服务器都可以很好地控制对事务请求的顺序处理。
+ *区分事务请求和非事务请求
  */
 public class CommitProcessor extends ZooKeeperCriticalThread implements RequestProcessor {
     private static final Logger LOG = LoggerFactory.getLogger(CommitProcessor.class);
@@ -41,22 +45,24 @@ public class CommitProcessor extends ZooKeeperCriticalThread implements RequestP
     /**
      * Requests that we are holding until the commit comes in.
      */
-    LinkedList<Request> queuedRequests = new LinkedList<Request>();
+    LinkedList<Request> queuedRequests = new LinkedList<Request>(); //请求队列
 
     /**
      * Requests that have been committed.
      */
-    LinkedList<Request> committedRequests = new LinkedList<Request>();
+    LinkedList<Request> committedRequests = new LinkedList<Request>();//已经提交过的请求
 
-    RequestProcessor nextProcessor;
-    ArrayList<Request> toProcess = new ArrayList<Request>();
+    RequestProcessor nextProcessor; //下一个处理器
+
+    ArrayList<Request> toProcess = new ArrayList<Request>();//待处理的队列
 
     /**
      * This flag indicates whether we need to wait for a response to come back from the
      * leader or we just let the sync operation flow through like a read. The flag will
      * be false if the CommitProcessor is in a Leader pipeline.
      */
-    boolean matchSyncs;
+    boolean matchSyncs; //看sync的请求是等待leader回复，还是说直接处理，像读请求一样。对于leader是false，对于learner是true
+
 
     public CommitProcessor(RequestProcessor nextProcessor, String id,
             boolean matchSyncs, ZooKeeperServerListener listener) {
@@ -153,6 +159,7 @@ public class CommitProcessor extends ZooKeeperCriticalThread implements RequestP
         LOG.info("CommitProcessor exited loop!");
     }
 
+    //事务提交请求
     synchronized public void commit(Request request) {
         if (!finished) {
             if (request == null) {
@@ -168,6 +175,10 @@ public class CommitProcessor extends ZooKeeperCriticalThread implements RequestP
         }
     }
 
+    /**
+     * 处理请求
+     * @param request
+     */
     synchronized public void processRequest(Request request) {
         // request.addRQRec(">commit");
         if (LOG.isDebugEnabled()) {
@@ -175,7 +186,7 @@ public class CommitProcessor extends ZooKeeperCriticalThread implements RequestP
         }
         
         if (!finished) {
-            queuedRequests.add(request);
+            queuedRequests.add(request);//增加队列
             notifyAll();
         }
     }
