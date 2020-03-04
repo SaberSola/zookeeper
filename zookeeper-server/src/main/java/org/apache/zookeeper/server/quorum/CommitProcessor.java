@@ -170,7 +170,7 @@ public class CommitProcessor extends ZooKeeperCriticalThread implements RequestP
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Committing request:: " + request);
             }
-            committedRequests.add(request);
+            committedRequests.add(request);//
             notifyAll();
         }
     }
