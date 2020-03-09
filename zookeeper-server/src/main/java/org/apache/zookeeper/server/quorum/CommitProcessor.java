@@ -76,7 +76,7 @@ public class CommitProcessor extends ZooKeeperCriticalThread implements RequestP
     @Override
     public void run() {
         try {
-            Request nextPending = null;            
+            Request nextPending = null;
             while (!finished) {
                 int len = toProcess.size();
                 for (int i = 0; i < len; i++) {
