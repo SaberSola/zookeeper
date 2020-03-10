@@ -687,7 +687,7 @@ public class Leader {
     static class ToBeAppliedRequestProcessor implements RequestProcessor {
         private RequestProcessor next;
 
-        private ConcurrentLinkedQueue<Proposal> toBeApplied;
+        private ConcurrentLinkedQueue<Proposal> toBeApplied;//并发队列
 
         /**
          * This request processor simply maintains the toBeApplied list. For
@@ -700,7 +700,7 @@ public class Leader {
          */
         ToBeAppliedRequestProcessor(RequestProcessor next,
                 ConcurrentLinkedQueue<Proposal> toBeApplied) {
-            if (!(next instanceof FinalRequestProcessor)) {
+            if (!(next instanceof FinalRequestProcessor)) { ////下一个必须是FinalRequestProcessor
                 throw new RuntimeException(ToBeAppliedRequestProcessor.class
                         .getName()
                         + " must be connected to "
@@ -725,7 +725,7 @@ public class Leader {
             Proposal p = toBeApplied.peek();
             if (p != null && p.request != null
                     && p.request.zxid == request.zxid) {
-                toBeApplied.remove();
+                toBeApplied.remove();//进行相关Clear
             }
         }
 

@@ -82,12 +82,19 @@ import org.apache.zookeeper.OpResult.ErrorResult;
 public class FinalRequestProcessor implements RequestProcessor {
     private static final Logger LOG = LoggerFactory.getLogger(FinalRequestProcessor.class);
 
-    ZooKeeperServer zks;
+    ZooKeeperServer zks; //zk服务器
 
     public FinalRequestProcessor(ZooKeeperServer zks) {
         this.zks = zks;
     }
 
+    /**
+     * 针对事务请求，完成事务的处理
+     * 对于非事务请求，完成对应处理
+     * serverStat进行对应更新，延迟，数量等等
+     * cnxn发送回复消息\
+     * @param request
+     */
     public void processRequest(Request request) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("Processing request:: " + request);
@@ -100,12 +107,12 @@ public class FinalRequestProcessor implements RequestProcessor {
         if (LOG.isTraceEnabled()) {
             ZooTrace.logRequest(LOG, traceMask, 'E', request, "");
         }
-        ProcessTxnResult rc = null;
+        ProcessTxnResult rc = null;//事务处理结果
         synchronized (zks.outstandingChanges) {
             while (!zks.outstandingChanges.isEmpty()
-                    && zks.outstandingChanges.get(0).zxid <= request.zxid) {
-                ChangeRecord cr = zks.outstandingChanges.remove(0);
-                if (cr.zxid < request.zxid) {
+                    && zks.outstandingChanges.get(0).zxid <= request.zxid) {//outstandingChanges不为空且首个zxid 小于当前请求的zxid
+                ChangeRecord cr = zks.outstandingChanges.remove(0);//之前在PrepRequestProcessor.addChangeRecord()时生产该队列
+                if (cr.zxid < request.zxid) {//只会出现>= (当前请求是事务请求是，按照顺序应该是=，如果不是的话，应该是>)
                     LOG.warn("Zxid outstanding "
                             + cr.zxid
                             + " is less than current " + request.zxid);
@@ -114,19 +121,19 @@ public class FinalRequestProcessor implements RequestProcessor {
                     zks.outstandingChangesForPath.remove(cr.path);
                 }
             }
-            if (request.hdr != null) {
+            if (request.hdr != null) {//事务请求
                TxnHeader hdr = request.hdr;
                Record txn = request.txn;
 
-               rc = zks.processTxn(hdr, txn);
+               rc = zks.processTxn(hdr, txn);//处理事务
             }
             // do not add non quorum packets to the queue.
-            if (Request.isQuorum(request.type)) {
+            if (Request.isQuorum(request.type)) {//事务请求
                 zks.getZKDatabase().addCommittedProposal(request);
             }
         }
 
-        if (request.hdr != null && request.hdr.getType() == OpCode.closeSession) {
+        if (request.hdr != null && request.hdr.getType() == OpCode.closeSession) {//处理close session请求
             ServerCnxnFactory scxn = zks.getServerCnxnFactory();
             // this might be possible since
             // we might just be playing diffs from the leader
@@ -143,20 +150,22 @@ public class FinalRequestProcessor implements RequestProcessor {
         if (request.cnxn == null) {
             return;
         }
-        ServerCnxn cnxn = request.cnxn;
+        ServerCnxn cnxn = request.cnxn;//server和客户端的链接
 
         String lastOp = "NA";
-        zks.decInProcess();
+        zks.decInProcess();//处理请求个数 + 1
         Code err = Code.OK;
         Record rsp = null;
         boolean closeSession = false;
         try {
+            //异常西你想
             if (request.hdr != null && request.hdr.getType() == OpCode.error) {
                 throw KeeperException.create(KeeperException.Code.get((
                         (ErrorTxn) request.txn).getErr()));
             }
 
             KeeperException ke = request.getException();
+            //抛异常
             if (ke != null && request.type != OpCode.multi) {
                 throw ke;
             }
@@ -164,8 +173,9 @@ public class FinalRequestProcessor implements RequestProcessor {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("{}",request);
             }
+            //枚举
             switch (request.type) {
-            case OpCode.ping: {
+            case OpCode.ping: {//ping消息
                 zks.serverStats().updateLatency(request.createTime);
 
                 lastOp = "PING";
@@ -176,7 +186,7 @@ public class FinalRequestProcessor implements RequestProcessor {
                         zks.getZKDatabase().getDataTreeLastProcessedZxid(), 0), null, "response");
                 return;
             }
-            case OpCode.createSession: {
+            case OpCode.createSession: {//创建session
                 zks.serverStats().updateLatency(request.createTime);
 
                 lastOp = "SESS";
@@ -186,7 +196,7 @@ public class FinalRequestProcessor implements RequestProcessor {
                 zks.finishSessionInit(request.cnxn, true);
                 return;
             }
-            case OpCode.multi: {
+            case OpCode.multi: {//多事务请求
                 lastOp = "MULT";
                 rsp = new MultiResponse() ;
 
@@ -219,36 +229,36 @@ public class FinalRequestProcessor implements RequestProcessor {
 
                 break;
             }
-            case OpCode.create: {
+            case OpCode.create: {//创建节点请求
                 lastOp = "CREA";
                 rsp = new CreateResponse(rc.path);
                 err = Code.get(rc.err);
                 break;
             }
-            case OpCode.delete: {
+            case OpCode.delete: {//删除节点请求
                 lastOp = "DELE";
                 err = Code.get(rc.err);
                 break;
             }
-            case OpCode.setData: {
+            case OpCode.setData: {//设置数据
                 lastOp = "SETD";
                 rsp = new SetDataResponse(rc.stat);
                 err = Code.get(rc.err);
                 break;
             }
-            case OpCode.setACL: {
+            case OpCode.setACL: {//设置acl
                 lastOp = "SETA";
                 rsp = new SetACLResponse(rc.stat);
                 err = Code.get(rc.err);
                 break;
             }
-            case OpCode.closeSession: {
+            case OpCode.closeSession: {//关闭session
                 lastOp = "CLOS";
                 closeSession = true;
                 err = Code.get(rc.err);
                 break;
             }
-            case OpCode.sync: {
+            case OpCode.sync: {//同步请求
                 lastOp = "SYNC";
                 SyncRequest syncRequest = new SyncRequest();
                 ByteBufferInputStream.byteBuffer2Record(request.request,
@@ -277,25 +287,26 @@ public class FinalRequestProcessor implements RequestProcessor {
                 rsp = new ExistsResponse(stat);
                 break;
             }
-            case OpCode.getData: {
+            case OpCode.getData: {//getData请求
                 lastOp = "GETD";
                 GetDataRequest getDataRequest = new GetDataRequest();
                 ByteBufferInputStream.byteBuffer2Record(request.request,
-                        getDataRequest);
+                        getDataRequest);//反序列化出getDataRequest
                 DataNode n = zks.getZKDatabase().getNode(getDataRequest.getPath());
                 if (n == null) {
                     throw new KeeperException.NoNodeException();
                 }
+                ////验证path对应的node是否存在
                 PrepRequestProcessor.checkACL(zks, zks.getZKDatabase().aclForNode(n),
                         ZooDefs.Perms.READ,
                         request.authInfo);
                 Stat stat = new Stat();
                 byte b[] = zks.getZKDatabase().getData(getDataRequest.getPath(), stat,
                         getDataRequest.getWatch() ? cnxn : null);
-                rsp = new GetDataResponse(b, stat);
+                rsp = new GetDataResponse(b, stat);//封装response
                 break;
             }
-            case OpCode.setWatches: {
+            case OpCode.setWatches: {//设置watchs
                 lastOp = "SETW";
                 SetWatches setWatches = new SetWatches();
                 // XXX We really should NOT need this!!!!

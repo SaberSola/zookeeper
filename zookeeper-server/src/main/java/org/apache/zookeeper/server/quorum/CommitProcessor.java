@@ -77,23 +77,33 @@ public class CommitProcessor extends ZooKeeperCriticalThread implements RequestP
     public void run() {
         try {
             Request nextPending = null;
-            while (!finished) {
+            while (!finished) {//未shutdown
+                //以下最好 1，4，2，3理解
+                /*****************************************************************/
+                //1:遍历toProcess队列(非事务请求或者已经提交的事务请求),交给下一个处理器处理，清空
                 int len = toProcess.size();
                 for (int i = 0; i < len; i++) {
-                    nextProcessor.processRequest(toProcess.get(i));
+                    nextProcessor.processRequest(toProcess.get(i));//待处理的队列 交给下个处理器处理
                 }
-                toProcess.clear();
-                synchronized (this) {
+                toProcess.clear();//clear
+                /*******************************************************************/
+                //2: 在请求队列remove干净或者找到了事务请求的情况下，
+                //如果没有提交的请求，就等待。
+                //如果有提交的请求，取出来，看和之前记录的下一个pend的请求是否match。
+                //match的话，进入toProcess队列，nextPending置空
+                //不match的话,(基本上是nextPending为null，不会出现不为null且不匹配的情况),进入toProcess处理
+                synchronized (this) {//加锁
+                    //这部分结合尾部的while来读，要么 请求队列remove干净，要么从中找到一个事务请求，赋值给nextPending, 不允许size>0且nextPending == null的情况
                     if ((queuedRequests.size() == 0 || nextPending != null)
-                            && committedRequests.size() == 0) {
+                            && committedRequests.size() == 0) {//且没有已提交的事务
                         wait();
                         continue;
                     }
                     // First check and see if the commit came in for the pending
                     // request
-                    if ((queuedRequests.size() == 0 || nextPending != null)
+                    if ((queuedRequests.size() == 0 || nextPending != null)//不允许 size > 0 且 nextPending == null的情况
                             && committedRequests.size() > 0) {
-                        Request r = committedRequests.remove();
+                        Request r = committedRequests.remove(); //取出一条需要提交的事务
                         /*
                          * We match with nextPending so that we can move to the
                          * next request when it is committed. We also want to
@@ -102,33 +112,35 @@ public class CommitProcessor extends ZooKeeperCriticalThread implements RequestP
                          */
                         if (nextPending != null
                                 && nextPending.sessionId == r.sessionId
-                                && nextPending.cxid == r.cxid) {
+                                && nextPending.cxid == r.cxid) {//取出的和nextpending匹配
                             // we want to send our version of the request.
                             // the pointer to the connection in the request
                             nextPending.hdr = r.hdr;
                             nextPending.txn = r.txn;
                             nextPending.zxid = r.zxid;
-                            toProcess.add(nextPending);
-                            nextPending = null;
+                            toProcess.add(nextPending);//加入待处理的队列
+                            nextPending = null;//下一个
                         } else {
                             // this request came from someone else so just
                             // send the commit packet
-                            toProcess.add(r);
+                            toProcess.add(r);//这种情况是nextPending还没有来的及设置，nextPending==null的情况(代码应该再细分一下if else),不可能出现nextPending!=null而走到了这里的情况(算异常)
                         }
                     }
                 }
-
+                /*******************************************************************/
+                //nextPending非空，就不用再去遍历请求队列，找到下一个事务请求(即4部分)，因此continue掉
                 // We haven't matched the pending requests, so go back to
                 // waiting
-                if (nextPending != null) {
+                if (nextPending != null) {//如果还有 未处理的事务请求(不含leader端的sync请求),就continue
                     continue;
                 }
-
-                synchronized (this) {
+                /*******************************************************************/
+                //4:只要不存在pend住的事务请求并且请求队列不为空，一直遍历请求队列直到出现第一个事务请求或者队列遍历完，其间所有非事务请求全部加入toProcess队列,代表可以直接交给下一个处理器处理的
+                synchronized (this) { //这一段的目的是找到一个 给nextPending赋值
                     // Process the next requests in the queuedRequests
                     while (nextPending == null && queuedRequests.size() > 0) {
-                        Request request = queuedRequests.remove();
-                        switch (request.type) {
+                        Request request = queuedRequests.remove();//取出请求
+                        switch (request.type) {//事务请求
                         case OpCode.create:
                         case OpCode.delete:
                         case OpCode.setData:
@@ -137,20 +149,21 @@ public class CommitProcessor extends ZooKeeperCriticalThread implements RequestP
                         case OpCode.createSession:
                         case OpCode.closeSession:
                             nextPending = request;
-                            break;
-                        case OpCode.sync:
+                            break;               //到这里事务请求
+                        case OpCode.sync:        //同步请求
                             if (matchSyncs) {
-                                nextPending = request;
+                                nextPending = request;//如果需要等leader返回,该值learner端为true
                             } else {
-                                toProcess.add(request);
+                                toProcess.add(request);//不需要则
                             }
-                            break;
+                            break;//leader端matchSyncs是false，learner端才需要等leader回复，这里也break
                         default:
-                            toProcess.add(request);
+                            toProcess.add(request);//加入待处理的队列
                         }
                     }
                 }
             }
+            /*******************************************************************/
         } catch (InterruptedException e) {
             LOG.warn("Interrupted exception while waiting", e);
         } catch (Throwable e) {
