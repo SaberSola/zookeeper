@@ -153,7 +153,7 @@ public class QuorumCnxManager {
 
     final ConcurrentHashMap<Long, ArrayBlockingQueue<ByteBuffer>> queueSendMap;//队列 	消息发送队列，key为各机器sid
 
-    final ConcurrentHashMap<Long, ByteBuffer> lastMessageSent;//最后一次发送的bhtebuffer
+    final ConcurrentHashMap<Long, ByteBuffer> lastMessageSent;//最后一次发送的bytebuffer
 
     /*
      * Reception queue
@@ -361,7 +361,6 @@ public class QuorumCnxManager {
             dout = new DataOutputStream(sock.getOutputStream());
             dout.writeLong(this.mySid);//发送本地cid
             dout.flush();
-
             din = new DataInputStream(
                     new BufferedInputStream(sock.getInputStream()));
         } catch (IOException e) {

@@ -118,7 +118,7 @@ public class FastLeaderElection implements Election {
         /*
          * Address of sender
          */
-        long sid; //被推举leader的sid
+        long sid; //
 
         /*
          * epoch of the proposed leader
@@ -845,7 +845,8 @@ public class FastLeaderElection implements Election {
 
             LOG.info("New election. My id =  " + self.getId() +
                     ", proposed zxid=0x" + Long.toHexString(proposedZxid));
-            sendNotifications(); //给其他参与者发送自己的提议
+            //注意发送的第一次投票选的都是自己
+            sendNotifications(); //给其他参与者发送自己的提议  循环发送
 
             /*
              * Loop in which we exchange notifications until we find a leader

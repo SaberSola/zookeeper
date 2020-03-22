@@ -354,7 +354,7 @@ public class NettyServerCnxnFactory extends ServerCnxnFactory {
             notifyAll();
         }
     }
-    
+
     @Override
     public void start() {
         LOG.info("binding to port " + localAddress);

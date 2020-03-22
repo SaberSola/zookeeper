@@ -28,9 +28,9 @@ public class ConnectStringParserTest extends ZKTestCase{
     @Test
     public void testSingleServerChrootPath(){
         String chrootPath = "/hallo/welt";
-        String servers = "10.10.10.1";
+        String servers = "10.10.10.1,10.10.10.2,10.10.10.3";
         assertChrootPath(chrootPath,
-                new ConnectStringParser(servers+chrootPath));
+                new ConnectStringParser(servers));
     }
 
     @Test
