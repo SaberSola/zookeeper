@@ -92,7 +92,7 @@ public class FollowerZooKeeperServer extends LearnerZooKeeperServer {
         request.txn = txn;
         request.zxid = hdr.getZxid();
         if ((request.zxid & 0xffffffffL) != 0) {
-            pendingTxns.add(request);
+            pendingTxns.add(request); //计入pending队列
         }
         syncProcessor.processRequest(request);
     }

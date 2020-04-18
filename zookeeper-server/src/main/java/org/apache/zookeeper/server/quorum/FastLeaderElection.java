@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.zookeeper.common.Time;
 import org.apache.zookeeper.jmx.MBeanRegistry;
@@ -1062,5 +1063,7 @@ public class FastLeaderElection implements Election {
 
     public static void main(String[] args) {
 
+        ReentrantLock lock = new ReentrantLock();
+        lock.lock();
     }
 }
